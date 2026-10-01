@@ -31,8 +31,8 @@ from pydantic_ai.settings import ModelSettings
 from checks import Issue, evidence_issues, run_all_checks
 from schemas import BoeExtraction, DutyPage, InvoicePage, SummaryPage, flatten
 
-EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-2.5-flash")
-EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-2.5-pro")   # different model = fewer shared blind spots
+EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
+EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")   # different model = fewer shared blind spots
 REVIEW_THRESHOLD = 0.8
 SETTINGS = ModelSettings(temperature=0.0)
 
