@@ -1,0 +1,1196 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bill of Entry Explorer — Maruti Suzuki</title>
+<style>
+:root{
+  --paper:#FFFFFF; --paper-2:#F2F8FD; --ink:#122237; --ink-soft:#5C7089;
+  --blue:#1950B1; --blue-deep:#133C84; --blue-pale:#DCE7F5; --line:#D9E7F3;
+  --line-soft:#EDF5FC; --danger:#B23B3B; --red:#E20916;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;}
+html,body{ background:var(--paper); }
+body{
+  margin:0; color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+
+/* ---------- header ---------- */
+.topbar{
+  background:var(--blue-pale);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 2px 10px rgba(19,60,132,.09);
+  padding:14px clamp(20px, 4vw, 40px);
+  position:relative; z-index:2;
+}
+.topbar-inner{ max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.topbar-brand{ display:flex; align-items:center; gap:16px; }
+.logo-img{ height:40px; width:auto; display:block; flex:0 0 auto; }
+.topbar-divider{ width:1px; height:34px; background:var(--line); }
+.topbar-text .company{ font-weight:700; font-size:16.5px; color:var(--blue-deep); }
+.topbar-text .appname{ font-size:12.5px; color:var(--ink-soft); margin-top:1px; }
+.topbar-meta{
+  font-size:11.5px; letter-spacing:.04em; color:var(--blue);
+  background:#fff; border:1px solid var(--line); border-radius:20px;
+  padding:5px 14px; white-space:nowrap;
+}
+@media (max-width:640px){ .topbar{ padding:10px 16px; } .topbar-meta{ display:none; } .logo-img{ height:32px; } }
+
+/* ---------- list page ---------- */
+.list-page{ width:92%; max-width:1320px; margin:0 auto; padding:40px 0 80px; }
+.list-header{ display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:26px; }
+.list-header .search-bar{ margin-left:auto; }
+.title-block{ display:flex; align-items:center; gap:14px; }
+.title-accent{ width:5px; height:32px; background:var(--red); border-radius:3px; flex:0 0 5px; }
+.list-page h1{ font-size:32px; margin:0; font-weight:700; color:var(--blue-deep); letter-spacing:-.01em; }
+.search-bar{ position:relative; width:300px; max-width:100%; }
+@media (max-width:640px){
+  .list-header{ flex-direction:column; align-items:stretch; gap:14px; }
+  .search-bar{ width:100%; }
+}
+.search-bar svg{ position:absolute; left:13px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--ink-soft); pointer-events:none; }
+.search-bar input{
+  width:100%; padding:11px 14px 11px 38px; border:1px solid var(--line); border-radius:8px;
+  background:#fff; color:var(--ink); font-size:14px; font-family:var(--sans);
+}
+.search-bar input:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-pale); }
+.search-bar input::placeholder{ color:var(--ink-soft); }
+.no-results{ padding:30px 22px; color:var(--ink-soft); font-size:14px; text-align:center; }
+.stats-strip{ display:flex; gap:16px; margin-bottom:28px; flex-wrap:wrap; }
+.stat-card{ flex:0 1 260px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+.stat-card .stat-label{ font-size:12px; color:var(--ink-soft); font-weight:600; }
+.stat-card .stat-value{ font-size:25px; font-weight:700; color:var(--ink); margin-top:6px; font-family:var(--mono); }
+.stat-card.lead{ background:var(--blue-deep); border-color:var(--blue-deep); }
+.stat-card.lead .stat-label{ color:#AFC3E4; }
+.stat-card.lead .stat-value{ color:#fff; }
+@media (max-width:640px){ .stat-card{ flex:1 1 45%; } }
+.bill-table{ border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper); }
+.bill-row{
+  display:grid; grid-template-columns:1.15fr .9fr 1.3fr .85fr .65fr 1.05fr 1.05fr 1.05fr 20px;
+  gap:14px; align-items:center; padding:17px 22px; border-bottom:1px solid var(--line-soft);
+}
+.bill-row:last-child{ border-bottom:none; }
+.bill-row > div:not(:last-child){ border-right:1px solid var(--line-soft); }
+.bill-row.hd{ font-size:11.5px; letter-spacing:.03em; color:var(--ink); font-weight:700; padding-top:13px; padding-bottom:13px; background:var(--blue-pale); border-bottom:2px solid var(--line); }
+.bill-row.hd > div:not(:last-child){ border-right:1px solid var(--line); }
+.bill-row.item{ cursor:pointer; }
+.bill-row.item:hover{ background:var(--paper-2); }
+.bill-row .beno{ font-family:var(--mono); font-weight:600; font-size:14.5px; }
+.bill-row .badge{ display:inline-block; font-size:10.5px; color:var(--blue-deep); background:var(--blue-pale); border-radius:4px; padding:1px 6px; margin-top:3px; }
+.bill-row .num{ font-family:var(--mono); text-align:right; }
+.bill-row .chev{ color:var(--blue); text-align:right; font-size:16px; }
+.bill-row .field .l{ display:none; }
+@media (max-width:820px){
+  .list-page{ width:100%; padding:28px 18px 60px; }
+  .bill-row.hd{ display:none; }
+  .bill-row.item{ grid-template-columns:1fr; gap:4px; padding:16px 18px; }
+  .bill-row.item > div{ border-right:none; }
+  .bill-row.item .field{ display:flex; justify-content:space-between; font-size:13.5px; }
+  .bill-row.item .field .l{ display:inline; color:var(--ink-soft); }
+  .bill-row.item .num{ text-align:right; }
+}
+
+/* ---------- detail page ---------- */
+.app{ display:flex; min-height:calc(100vh - 71px); }
+.rail{
+  width:280px; flex:0 0 280px; border-right:1px solid var(--line);
+  background:var(--paper-2); display:flex; flex-direction:column;
+}
+.back-btn{
+  margin:16px 14px 0; text-align:left; border:1px solid var(--line); background:var(--paper);
+  border-radius:6px; padding:9px 12px; cursor:pointer; color:var(--blue-deep); font-size:13.5px; font-weight:600;
+}
+.back-btn:hover{ background:var(--blue-pale); }
+.current-bill{ padding:16px 18px 6px; border-bottom:1px solid var(--line); margin-top:4px; }
+.current-bill .cb-no{ font-family:var(--mono); font-weight:600; font-size:15px; color:var(--ink); }
+.current-bill .cb-port{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+nav{ flex:1; overflow-y:auto; padding:6px 8px 18px; }
+.part-label{ font-size:11px; letter-spacing:.06em; color:var(--ink-soft); font-weight:600; padding:14px 10px 4px; }
+.sec-btn{
+  display:block; width:100%; text-align:left; border:none; background:none;
+  color:var(--ink); padding:7px 12px; border-radius:5px; cursor:pointer; font-size:14px;
+}
+.sec-btn:hover{ background:var(--blue-pale); }
+.sec-btn.active{ background:var(--blue-deep); color:#fff; }
+.inv-tabs{ display:flex; gap:4px; padding:4px 10px 8px; flex-wrap:wrap; }
+.inv-tab{
+  border:1px solid var(--line); background:var(--paper); color:var(--ink-soft);
+  font-family:var(--mono); font-size:12px; padding:3px 8px; border-radius:4px; cursor:pointer;
+}
+.inv-tab.active{ border-color:var(--blue-deep); color:var(--blue-deep); font-weight:600; background:var(--blue-pale); }
+main{ flex:1; min-width:0; padding:28px 40px 60px; max-width:920px; }
+.crumb{ font-size:13px; color:var(--ink-soft); margin-bottom:6px; }
+.crumb b{ color:var(--ink); font-weight:600; }
+h2.title{ margin:0 0 2px; font-size:22px; font-weight:600; color:var(--ink); }
+.sheet{ border:1px solid var(--line); border-radius:8px; background:var(--paper); overflow:hidden; }
+.field-row{ display:flex; gap:18px; padding:11px 18px; border-bottom:1px solid var(--line-soft); align-items:baseline; }
+.field-row:last-child{ border-bottom:none; }
+.field-row .fno{ font-family:var(--mono); font-size:12px; color:var(--ink-soft); width:26px; flex:0 0 26px; }
+.field-row .flabel{ width:190px; flex:0 0 190px; color:var(--ink-soft); font-size:13.5px; }
+.field-row .fvalue{ flex:1; font-weight:500; word-break:break-word; }
+.field-row.flash{ animation:flash 1.1s ease; }
+@keyframes flash{ 0%{ background:var(--blue-pale);} 100%{ background:transparent;} }
+.empty{ color:var(--ink-soft); font-style:italic; }
+.note{ margin-top:16px; padding:12px 16px; border:1px dashed var(--line); border-radius:8px; color:var(--ink-soft); font-size:13.5px; }
+table.items{ width:100%; border-collapse:collapse; font-size:13.5px; border:1px solid var(--line); }
+table.items th{
+  text-align:left; font-size:11.5px; letter-spacing:.03em; color:var(--ink); font-weight:700;
+  border:1px solid var(--line); padding:9px 10px; position:sticky; top:0; background:var(--blue-pale);
+}
+table.items td{ padding:8px 10px; border:1px solid var(--line-soft); vertical-align:top; }
+table.items tr.item-row{ cursor:pointer; }
+table.items tr.item-row:hover{ background:var(--paper-2); }
+table.items td.num{ text-align:right; font-family:var(--mono); white-space:nowrap; }
+table.items tr.tot td{ background:var(--blue-pale); font-weight:700; border-top:2px solid var(--line); }
+table.items td.cth{ font-family:var(--mono); color:var(--ink-soft); white-space:nowrap; }
+.items-wrap{ max-height:560px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+.item-detail{ margin-top:16px; border:1px solid var(--blue-deep); border-radius:8px; overflow:hidden; }
+.item-detail .hd{ background:var(--blue-pale); padding:10px 16px; font-weight:600; display:flex; justify-content:space-between; }
+.item-detail .hd button{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:13px; }
+@media (max-width:760px){
+  .app{ flex-direction:column; min-height:auto; }
+  .rail{ width:100%; flex:none; }
+  nav{ max-height:280px; }
+  main{ padding:20px 16px 48px; }
+  .field-row{ flex-wrap:wrap; }
+  .field-row .flabel{ width:100%; }
+}
+
+/* ---------- upload / key / progress ---------- */
+.list-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.btn{ border:1px solid var(--line); background:#fff; color:var(--blue-deep); border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--sans); }
+.btn:hover{ background:var(--blue-pale); }
+.btn.primary{ background:var(--blue-deep); border-color:var(--blue-deep); color:#fff; }
+.btn.primary:hover{ background:var(--blue); }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+.keystate{ font-size:12px; color:var(--ink-soft); }
+.dropzone{ border:2px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--ink-soft); font-size:13.5px; margin-bottom:22px; background:var(--paper-2); }
+.dropzone.over{ border-color:var(--blue); background:var(--blue-pale); color:var(--blue-deep); }
+.dropzone a{ color:var(--blue); cursor:pointer; font-weight:600; text-decoration:underline; }
+.badge.up{ background:#E3F4E8; color:#1E6B3A; margin-left:4px; }
+.row-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.row-dl{ border:1px solid var(--line); background:#fff; color:var(--blue-deep); font-size:12px; padding:3px 9px; border-radius:6px; font-family:var(--sans); cursor:pointer; }
+.row-dl:disabled{ opacity:.6; cursor:wait; }
+.row-dl, .row-del{ display:inline-flex; align-items:center; gap:5px; line-height:1; }
+.row-dl svg, .row-del svg{ flex:0 0 auto; }
+.row-dl:hover{ background:var(--blue-pale); }
+.row-del{ border:1px solid #E7C4C4; background:#fff; color:var(--danger); cursor:pointer; font-size:12px; padding:3px 9px; border-radius:6px; font-family:var(--sans); }
+.row-del:hover{ background:#FBEAEA; }
+.row-del.solid{ background:var(--danger); border-color:var(--danger); color:#fff; }
+.row-del.solid:hover{ background:#8F2E2E; }
+.del-q{ font-size:12.5px; color:var(--danger); font-weight:600; align-self:center; }
+.restore{ margin-top:12px; font-size:13px; color:var(--ink-soft); }
+.restore a{ color:var(--blue); cursor:pointer; text-decoration:underline; }
+.modal-bg{ position:fixed; inset:0; background:rgba(18,34,55,.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px; }
+.modal{ background:#fff; border-radius:12px; padding:24px; width:480px; max-width:100%; box-shadow:0 12px 40px rgba(0,0,0,.25); }
+.modal h3{ margin:0 0 8px; color:var(--blue-deep); font-size:18px; }
+.modal p{ margin:0 0 12px; font-size:13.5px; color:var(--ink-soft); }
+.modal input[type=password],.modal input[type=text]{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-family:var(--mono); font-size:13.5px; }
+.modal input:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-pale); }
+.modal .btns{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.modal .err{ color:var(--danger); font-size:13px; margin-top:8px; }
+.modal label.chk{ display:flex; gap:8px; align-items:flex-start; font-size:13px; color:var(--ink); margin-top:12px; }
+.bar{ height:8px; background:var(--blue-pale); border-radius:6px; overflow:hidden; margin:14px 0 6px; }
+.bar > i{ display:block; height:100%; background:var(--blue); width:0; transition:width .3s; }
+.qbanner{ margin:0 0 16px; padding:11px 16px; border-radius:8px; font-size:13.5px; border:1px solid var(--line); background:var(--paper-2); color:var(--ink); }
+.qbanner.warn{ border-color:#E0B25A; background:#FFF7E6; }
+.qbanner.ok{ border-color:#9CCFAE; background:#EEF8F1; }
+.qbanner details{ margin-top:8px; }
+.qbanner summary{ cursor:pointer; font-weight:600; }
+.qbanner ul{ margin:6px 0 0; padding-left:18px; max-height:220px; overflow:auto; font-size:12.5px; }
+.qbanner code{ font-family:var(--mono); font-size:12px; }
+.toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:8px; font-size:13.5px; z-index:60; max-width:90%; }
+
+/* ---------- upload card (drop zone + key) ---------- */
+.upload-card{ display:grid; grid-template-columns:1.5fr 1fr; gap:16px; margin-bottom:24px; }
+@media (max-width:860px){ .upload-card{ grid-template-columns:1fr; } }
+.upload-card .dropzone{ margin:0; padding:28px 22px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height:210px; text-align:center; transition:background .15s,border-color .15s; }
+.upload-card .dropzone.busy{ border-style:solid; border-color:var(--blue); background:#fff; }
+.upload-card .dropzone.done{ border-style:solid; border-color:#9CCFAE; background:#F3FAF5; }
+.upload-card .dropzone.error{ border-style:solid; border-color:#E7C4C4; background:#FFF7F7; }
+.upload-card .dropzone.waiting{ border-style:solid; border-color:var(--blue); background:#fff; }
+.dz-icon{ width:52px; height:52px; border-radius:50%; background:var(--blue-pale); color:var(--blue-deep); display:flex; align-items:center; justify-content:center; margin-bottom:4px; }
+.dz-icon.ok{ background:#DDF1E4; color:#1E6B3A; }
+.dz-icon.err{ background:#F8DDDD; color:var(--danger); }
+.dz-title{ font-size:16.5px; font-weight:650; color:var(--ink); word-break:break-word; max-width:100%; }
+.dz-sub{ color:var(--ink-soft); font-size:13.5px; min-height:20px; max-width:440px; }
+.dz-sub.err-text{ color:var(--danger); }
+.dz-sub .btn{ padding:6px 14px; margin-left:4px; }
+.dz-hint{ color:var(--ink-soft); font-size:12px; margin-top:4px; opacity:.85; }
+.dz-actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; justify-content:center; }
+.dz-actions .btn{ padding:8px 16px; }
+.spinner{ width:22px; height:22px; border:3px solid var(--blue-pale); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite; display:block; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.up-prog{ display:flex; align-items:center; gap:10px; width:100%; max-width:380px; margin-top:6px; }
+.up-prog .bar{ flex:1; margin:0; }
+.up-pct{ font-family:var(--mono); font-size:12.5px; color:var(--blue-deep); min-width:38px; text-align:right; }
+
+.upload-side{ border:1px solid var(--line); border-radius:14px; padding:18px 20px; background:#fff; display:flex; flex-direction:column; gap:12px; }
+.upload-side.needs-key{ border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-pale); }
+.side-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.side-title{ font-size:12px; letter-spacing:.06em; font-weight:700; color:var(--ink-soft); text-transform:uppercase; }
+.pill{ font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:20px; }
+.pill.ok{ background:#DDF1E4; color:#1E6B3A; }
+.pill.warn{ background:#FFF1D6; color:#8A5A00; }
+.fld-label{ font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:-6px; }
+.keyrow{ display:flex; gap:8px; }
+.keyinput{ position:relative; flex:1; min-width:0; }
+.keyinput input{ width:100%; padding:10px 38px 10px 12px; border:1px solid var(--line); border-radius:9px; font-family:var(--mono); font-size:13px; background:#fff; color:var(--ink); }
+.keyinput input:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-pale); }
+.keyinput .eye{ position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-soft); cursor:pointer; padding:6px; display:flex; border-radius:6px; }
+.keyinput .eye:hover{ color:var(--blue-deep); background:var(--paper-2); }
+.keyrow .btn{ padding:9px 16px; }
+.fld-err{ color:var(--danger); font-size:12.5px; font-weight:500; margin-top:-4px; }
+.fld-hint{ font-size:12.5px; color:var(--ink-soft); margin-top:-4px; }
+.fld-hint a{ color:var(--blue); cursor:pointer; text-decoration:underline; }
+.key-card{ display:flex; align-items:center; gap:12px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--paper-2); color:var(--blue-deep); }
+.key-meta{ flex:1; min-width:0; }
+.key-name{ font-size:13px; font-weight:600; color:var(--ink); }
+.key-mask{ font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); letter-spacing:.02em; }
+.key-acts{ display:flex; gap:12px; font-size:12.5px; }
+.key-acts a{ color:var(--blue); cursor:pointer; text-decoration:underline; }
+.switch-row{ display:flex; gap:12px; align-items:flex-start; padding-top:12px; border-top:1px solid var(--line-soft); }
+.sw-title{ font-size:13.5px; font-weight:600; color:var(--ink); }
+.sw-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+.switch{ position:relative; display:inline-block; width:38px; height:22px; flex:0 0 38px; margin-top:1px; }
+.switch input{ opacity:0; width:0; height:0; position:absolute; }
+.slider{ position:absolute; inset:0; background:#C9D6E6; border-radius:22px; cursor:pointer; transition:background .15s; }
+.slider::before{ content:""; position:absolute; height:16px; width:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+.switch input:checked + .slider{ background:var(--blue); }
+.switch input:checked + .slider::before{ transform:translateX(16px); }
+.switch input:focus-visible + .slider{ box-shadow:0 0 0 3px var(--blue-pale); }
+</style>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <img class="logo-img" alt="Maruti Suzuki" src="data:image/png;base64,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">
+    <div class="topbar-text">
+      <div class="company">Maruti Suzuki India Limited</div>
+      <div class="appname">Bill of Entry Explorer</div>
+    </div>
+  </div>
+  <div class="topbar-meta">Powered by DE</div>
+</header>
+<div id="root"></div>
+
+<script>
+/* ============================================================
+   DATA — structured to mirror the relational schema. Every
+   value traces to a single, unambiguous cell in the source
+   PDFs (Part I header block, Part II invoice/valuation/item
+   tables). Part III per-item duty amounts are NOT populated —
+   the flattened OCR text repeats and pivots those numbers
+   enough that hand-transcribing all ~125 items' duty lines
+   could not be verified reliably, so boe_item_duty is left
+   empty by design rather than guessed.
+   ============================================================ */
+
+const DOCS = {
+  D1: {
+    label: "INDEL4 · BE 7526371", short: "BE 7526371",
+    boe: { portCode:"INDEL4", beNo:"7526371", beDate:"14-Feb-2026", beType:"H", iecBr:"0588000591/9",
+      copyType:"FIRST COPY", gstin:"06AAACM0829Q4Z5/G", cbCode:"AACCN5026ECH007",
+      docType:"Bill of Entry for Home Consumption", port:"INDEL4 (Delhi Air Cargo)",
+      totalInvoices:1, totalItems:24, totalContainers:0, totalPackages:2, grossWeightKg:"498",
+      barcode:"BE0140220261441" },
+    status:{ beStatus:"FIRST COPY", mode:"Air", assess:"N", exam:"N", hss:"N", firstCheck:"N", provFinal:"F",
+      countryOfOrigin:"Japan", countryOfConsignment:"Japan", portOfLoading:"Tokyo - Narita", portOfShipment:"Tokyo - Narita" },
+    declarant:{ importerName:"Maruti Suzuki India Limited",
+      importerAddress:"Maruti Suzuki India Limited, Palam; Maruti Suzuki India Limited Manufac; Gurugram 122015",
+      cbName:"Nippon Express (India) Private Limited", adCode:"6440002" },
+    dutySummary:{ bcd:301857.3, acd:0, sws:30185.7, nccd:0, add:0, cvd:0, igst:421997, gCess:0,
+      totalAssessableValue:2012384, sg:0, saed:0, gsia:0, tta:0, health:0, totalDuty:754040,
+      interest:0, penalty:0, fine:0, totalAmount:754040 },
+    manifest:{ mawbNo:"21707516036", mawbDate:"13-Feb-2026", hawbNo:"YTJ45042093", hawbDate:"13-Feb-2026",
+      packages:2, grossWeightKg:"498" },
+    payments:[ {srNo:1, challanNo:"2059531027", paidOn:"14-Feb-2026", amount:754040} ],
+    events:[ {event:"Submission", date:"14-Feb-2026", time:"14:38", rate:"INR = INR"},
+             {event:"Assessment", date:"14-Feb-2026", time:"14:41", rate:"100 JPY = 58.65 INR"} ],
+    containers:[],
+    invoices:[
+      { sno:1, no:"BYA48607", date:"13-Feb-2026", amount:3311001.21, currency:"JPY",
+        parties:{ buyer:"Maruti Suzuki India Limited, Palam; Gurugram 122015", seller:null,
+          supplier:"Suzuki Motor Corporation, 300 Takatsuka-cho Chuo-ku Hamamatsu-shi Shizuoka 432-8611, Japan",
+          thirdParty:null },
+        valuation:{ invoiceValue:3311001.21, freight:118650, insurance:"0.046%", hss:null, loading:null,
+          commission:null, payTerms:"FC", valuationMethod:"Rule 4 (Transaction Value)", currency:"JPY",
+          relatedParty:"Yes", svbCh:"INDEL4", svbNo:"46/2015-16", svbDate:"10-Mar-2016", loa:"0", incoterm:"FOB" },
+        cost:{ miscCharge:0, assessValue:2012383.71 },
+        items:[
+          [1,"87089900","34100-73T50 SPEEDOMETER ASSY. COMB",14482.49,64,"NOS",926879.36],
+          [2,"87089900","34100-73T50 SPEEDOMETER ASSY, COMB",14482.49,2,"NOS",28964.98],
+          [3,"87089900","34100-73TJ0 SPEEDOMETER ASSY. COMB",14425.53,1,"NOS",14425.53],
+          [4,"87089900","34100-73TL0 SPEEDOMETER ASSY. COMB",14463.49,3,"NOS",43390.47],
+          [5,"87089900","34101-73T00 SPEEDOMETER ASSY. COMB",14425.53,2,"NOS",28851.06],
+          [6,"87089900","34101-73T30 SPEEDOMETER ASSY, COMB",14425.53,1,"NOS",14425.53],
+          [7,"87089900","34101-73T50 SPEEDOMETER ASSY. COMB",14425.53,2,"NOS",28851.06],
+          [8,"87089900","34101-73TN0 SPEEDOMETER ASSY, COMB",14425.53,2,"NOS",28851.06],
+          [9,"87089900","34101-73TU0 SPEEDOMETER ASSY. COMB",14425.53,1,"NOS",14425.53],
+          [10,"87089900","34102-73TT0 SPEEDOMETER ASSY. COMB",14425.53,1,"NOS",14425.53],
+          [11,"87089900","34102-73T30 SPEEDOMETER ASSY, COMB",14425.53,1,"NOS",14425.53],
+          [12,"87089900","34102-73T30 SPEEDOMETER ASSY. COMB",14425.53,1,"NOS",14425.53],
+          [13,"87089900","34103-73T30 SPEEDOMETER ASSY. COMB",14594.86,2,"NOS",29189.72],
+          [14,"87089900","34103-73T50 SPEEDOMETER ASSY. COMB",14752.33,3,"NOS",44256.99],
+          [15,"87089900","34103-73T50 SPEEDOMETER ASSY, COMB",15165.73,9,"NOS",136491.57],
+          [16,"87089900","34100-73T50 SPEEDOMETER ASSY, COMB",14482.49,94,"NOS",1361354.06],
+          [17,"87089900","34100-73T50 SPEEDOMETER ASSY. COMB",14482.49,8,"NOS",115859.92],
+          [18,"87089900","34100-73TE0 SPEEDOMETER ASSY, COMB",14444.53,2,"NOS",28889.06],
+          [19,"87089900","34100-73TL0 SPEEDOMETER ASSY, COMB",14463.49,4,"NOS",57853.96],
+          [20,"87089900","34101-73T90 SPEEDOMETER ASSY. COMB",14425.53,6,"NOS",86553.18],
+          [21,"87089900","34101-73T90 SPEEDOMETER ASSY. COMB",14425.53,3,"NOS",43276.59],
+          [22,"87089900","34103-73T30 SPEEDOMETER ASSY. COMB",14594.86,7,"NOS",102164.02],
+          [23,"87089900","34103-73T50 SPEEDOMETER ASSY, COMB",14752.33,4,"NOS",59009.32],
+          [24,"87089900","34103-73T60 SPEEDOMETER ASSY, COMB",14752.33,5,"NOS",73761.65]
+        ]}
+    ],
+    supportingDocs:[
+      {inv:0,item:0, type:"70300", icegate:"NEINDELD", irn:"2026021400042483", place:"Japan", date:"14-Feb-2026"},
+      {inv:0,item:0, type:"33100", icegate:"NEINDELD", irn:"2026021400042484", place:"Japan", date:"14-Feb-2026"},
+      {inv:0,item:0, type:"33100", icegate:"NEINDELD", irn:"2026021400042485", place:"Japan", date:"14-Feb-2026"}
+    ],
+    declarations:[
+      {for:"0/0", key:"D"}, {for:"0/0", key:"E"},
+      {for:"1/0", key:"B"}, {for:"1/0", key:"C"}, {for:"1/0", key:"A"}
+    ],
+    signatory:{ chaName:"Nippon Express (India) Private Limited", date:null, place:null }
+  },
+
+  D2: {
+    label: "INGHR6 · BE 8017253", short: "BE 8017253",
+    boe:{ portCode:"INGHR6", beNo:"8017253", beDate:"27-Jan-2025", beType:"H", iecBr:"0588000591/9",
+      copyType:"FIRST COPY", gstin:"06AAACM0829Q4Z5/G", cbCode:"SELFSUBMITCH001",
+      docType:"Bill of Entry for Home Consumption", port:"ICD Garhi Harsaru, Sri Maruthi Nagar, Gurgaon",
+      totalInvoices:3, totalItems:101, totalContainers:1, totalPackages:39, grossWeightKg:"1765.086",
+      barcode:"BE0270120251206" },
+    status:{ beStatus:"FIRST COPY", mode:"Land", assess:"N", exam:"N", hss:"N", firstCheck:"N", provFinal:"F",
+      countryOfOrigin:"Italy", countryOfConsignment:"Italy", portOfLoading:"Trieste", portOfShipment:"Trieste" },
+    declarant:{ importerName:"Maruti Suzuki India Limited",
+      importerAddress:"Maruti Suzuki India Limited, Palam; Maruti Suzuki India Limited Manufac; Gurugram 122015",
+      cbName:"Filed by IEC himself (no customs broker)", adCode:"0180003" },
+    dutySummary:{ bcd:0, acd:0, sws:60568.1, nccd:0, add:0, cvd:0, igst:1350541, gCess:0,
+      totalAssessableValue:5064352, sg:0, saed:0, gsia:0, tta:0, health:0, totalDuty:1411109,
+      interest:0, penalty:0, fine:0, totalAmount:1411109 },
+    manifest:{ mawbNo:"MEDUEC571373", mawbDate:"26-Nov-2024", hawbNo:"BUD0021247", hawbDate:"26-Nov-2024",
+      packages:39, grossWeightKg:"1765.086" },
+    payments:[ {srNo:1, challanNo:"2053102747", paidOn:"27-Jan-2025", amount:1411109} ],
+    events:[ {event:"Submission", date:"27-Jan-2025", time:"12:03", rate:"1 EUR = 89.9 INR"},
+             {event:"Assessment", date:"27-Jan-2025", time:"12:06", rate:"INR = INR"} ],
+    containers:[ {sno:1, lclFcl:"F", truck:"NA", seal:"NA", containerNumber:"XHCU2465002"} ],
+    invoices:[
+      { sno:1, no:"813591", date:"09-Oct-2024", amount:19694.73, currency:"EUR",
+        parties:{ buyer:"Maruti Suzuki India Limited, Palam; Gurugram 122015", seller:null,
+          supplier:"Magyar Suzuki Zrt., Esztergom Schweidel Jozsef Utca 52., 2500 Hungary", thirdParty:null },
+        valuation:{ invoiceValue:19694.73, freight:479.43, insurance:"0.0708%", hss:null, loading:null,
+          commission:null, payTerms:"OTH", valuationMethod:"Rule 4 (Transaction Value)", currency:"EUR (freight in USD)",
+          relatedParty:"No", svbCh:null, svbNo:null, svbDate:null, loa:null, incoterm:"FOB" },
+        cost:{ miscCharge:286.93, assessValue:1839381.39 },
+        items:[
+          [1,"40169950","41710-61M00-000 Support,Fr Strut AKK416 (inputs for spare parts)",14.77,176,"NOS",2599.52],
+          [2,"40169950","41710-61M00-000 Support,Fr Strut AKK416 (inputs for spare parts)",14.77,416,"NOS",6144.32],
+          [3,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,60,"NOS",155.40],
+          [4,"40169950","41710-61M00-000 Support,Fr Strut AKK416 (inputs for spare parts)",14.77,192,"NOS",2835.84],
+          [5,"40169950","41710-61M00-000 Support,Fr Strut AKK416 (inputs for spare parts)",14.77,114,"NOS",1683.78],
+          [6,"87085000","44102-61M20-000 Shaft, Front Drive AKK416 (inputs for spareparts)",187.06,3,"NOS",561.18],
+          [7,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,3,"NOS",124.44],
+          [8,"87089900","11610-62M00-000 Mounting,Eng RH (inputs for spare parts)",56.65,21,"NOS",1189.65],
+          [9,"87089900","11920-62M00-000 Rod,Eng Trq No.2 (inputs for spare parts)",41.72,5,"NOS",208.60],
+          [10,"73181500","13176-79J80-000 Bolt,Engine Cover (inputs for spare parts)",0.74,7,"NOS",5.18],
+          [11,"40093100","13661-62M00-000 Hose,Inter Cooler In (inputs for spare parts)",18.03,14,"NOS",252.42],
+          [12,"84835090","17530-62M00-000 Pulley,Idler AKK416 (inputs for spare parts)",9.10,24,"NOS",218.40],
+          [13,"84835090","17540-62M00-000 Tensioner, Drive Belt AKK416 (inputs for spare parts)",26.43,43,"NOS",1136.49],
+          [14,"87084000","28113-62M03-C48 Knob,Gear Shift Cont APK416 (inputs for spare parts)",24.65,14,"NOS",345.10],
+          [15,"87084000","28130-62M02-5PK Boot,Shift Lever(Black)AKK416 (inputs for spare parts)",38.50,1,"NOS",38.50],
+          [16,"87082900","73511-61M00-5PK Garnish, I/P AKK416 (inputs for spare parts)",15.77,3,"NOS",47.31],
+          [17,"40103999","95141-62M00-000 Poly-V Belt (inputs for spare parts)",11.99,46,"NOS",551.54],
+          [18,"87085000","44101-61M21-000 Shaft, Front Drive AKK416 (inputs for spareparts)",216.85,1,"NOS",216.85],
+          [19,"87085000","44101-61M21-000 Shaft, Front Drive AKK416 (inputs for spareparts)",216.85,1,"NOS",216.85],
+          [20,"87085000","44101-61M21-000 Shaft, Front Drive AKK416 (inputs for spareparts)",216.85,1,"NOS",216.85],
+          [21,"87082900","73511-61M00-5PK Garnish, I/P AKK416 (inputs for spare parts)",15.77,1,"NOS",15.77],
+          [22,"40093100","13661-62M00-000 Hose,Inter Cooler In (inputs for spare parts)",18.03,14,"NOS",252.42],
+          [23,"40093100","13661-62M00-000 Hose,Inter Cooler In (inputs for spare parts)",18.03,12,"NOS",216.36],
+          [24,"40103999","95141-62M00-000 Poly-V Belt (inputs for spare parts)",11.99,20,"NOS",239.80],
+          [25,"40103999","95141-62M00-000 Poly-V Belt (inputs for spare parts)",11.99,6,"NOS",71.94],
+          [26,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,1,"NOS",2.59],
+          [27,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,30,"NOS",77.70],
+          [28,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,27,"NOS",69.93]
+        ]},
+      { sno:2, no:"815720", date:"22-Oct-2024", amount:10665.82, currency:"EUR",
+        parties:{ buyer:"Maruti Suzuki India Limited, Palam; Gurugram 122015", seller:null,
+          supplier:"Magyar Suzuki Zrt., Esztergom Schweidel Jozsef Utca 52., 2500 Hungary", thirdParty:null },
+        valuation:{ invoiceValue:10665.82, freight:259.64, insurance:"0.0708%", hss:null, loading:null,
+          commission:null, payTerms:"OTH", valuationMethod:"Rule 4 (Transaction Value)", currency:"EUR (freight in USD)",
+          relatedParty:"No", svbCh:null, svbNo:null, svbDate:null, loa:null, incoterm:"FOB" },
+        cost:{ miscCharge:155.39, assessValue:996130.21 },
+        items:[
+          [1,"39263090","13170-62M00-000 Cover Comp,Engine (inputs for spare parts)",50.60,3,"NOS",151.80],
+          [2,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,7,"NOS",1457.89],
+          [3,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,6,"NOS",1249.62],
+          [4,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,5,"NOS",1041.35],
+          [5,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,5,"NOS",1041.35],
+          [6,"85114000","31100-55L01-000 Motor, Starting RW420D (inputs for spare parts)",143.00,10,"NOS",1430.00],
+          [7,"39263090","13170-62M00-000 Cover Comp,Engine (inputs for spare parts)",50.60,2,"NOS",101.20],
+          [8,"84099199","14110-61M12-H02 Manifold,Exhaust AKK416 (inputs for spare parts)",708.55,1,"NOS",708.55],
+          [9,"39269099","17100-62M00-000 Fan,Engine Cooling,AKK416 (inputs for spareparts)",163.53,3,"NOS",490.59],
+          [10,"85114000","31100-55L01-000 Motor, Starting RW420D (inputs for spare parts)",143.00,11,"NOS",1573.00],
+          [11,"87085000","44101-61M21-000 Shaft, Front Drive AKK416 (inputs for spareparts)",216.85,1,"NOS",216.85],
+          [12,"87085000","44102-61M20-000 Shaft, Front Drive AKK416 (inputs for spareparts)",187.06,1,"NOS",187.06],
+          [13,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,46,"NOS",119.14],
+          [14,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [15,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [16,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [17,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [18,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [19,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [20,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [21,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,1,"NOS",41.48],
+          [22,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,1,"NOS",41.48],
+          [23,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,1,"NOS",41.48],
+          [24,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,1,"NOS",41.48]
+        ]},
+      { sno:3, no:"818212", date:"07-Nov-2024", amount:23864.77, currency:"EUR",
+        parties:{ buyer:"Maruti Suzuki India Limited, Palam; Gurugram 122015", seller:null,
+          supplier:"Magyar Suzuki Zrt., Esztergom Schweidel Jozsef Utca 52., 2500 Hungary", thirdParty:null },
+        valuation:{ invoiceValue:23864.77, freight:580.94, insurance:"0.0708%", hss:null, loading:null,
+          commission:null, payTerms:"OTH", valuationMethod:"Rule 4 (Transaction Value)", currency:"EUR (freight in USD)",
+          relatedParty:"No", svbCh:null, svbNo:null, svbDate:null, loa:null, incoterm:"FOB" },
+        cost:{ miscCharge:347.68, assessValue:2228840.24 },
+        items:[
+          [1,"40169950","11391-62M00-000 Cover, Timing Belt (inputs for spare parts)",25.30,6,"NOS",151.80],
+          [2,"39263090","13760-62M01-000 Pipe, Suction (inputs for spare parts)",11.88,1,"NOS",11.88],
+          [3,"73181500","14125-62M00-000 Bolt, Exh Manf Cover AKK416D (inputs for spare parts)",0.34,6,"NOS",2.04],
+          [4,"73181500","16932-79J80-000 Bolt,Oil Level Gauge RW420D (inputs for spare parts)",0.28,6,"NOS",1.68],
+          [5,"39263090","13760-62M01-000 Pipe, Suction (inputs for spare parts)",11.88,1,"NOS",11.88],
+          [6,"40169950","11391-62M00-000 Cover, Timing Belt (inputs for spare parts)",25.30,1,"NOS",25.30],
+          [7,"87089900","11610-62M00-000 Mounting,Eng RH (inputs for spare parts)",56.65,8,"NOS",453.20],
+          [8,"87089900","11620-62M00-000 Mounting,Eng LH (inputs for spare parts)",38.50,20,"NOS",770.00],
+          [9,"87089900","11620-62M00-000 Mounting,Eng LH (inputs for spare parts)",38.50,9,"NOS",346.50],
+          [10,"87089900","11920-62M00-000 Rod,Eng Trq No.2 (inputs for spare parts)",41.72,9,"NOS",375.48],
+          [11,"73181500","15212-62M00-000 Bolt,Fuel High Pressure,AKK416 (inputs for spare parts)",0.28,1,"NOS",0.28],
+          [12,"84122100","23810-55P00-000 Cylinder,Clutch Master APK416 (inputs for spare parts)",39.03,23,"NOS",897.69],
+          [13,"84122100","23810-55P00-000 Cylinder,Clutch Master APK416 (inputs for spare parts)",39.03,21,"NOS",819.63],
+          [14,"87084000","28130-62M02-5PK Boot,Shift Lever(Black)AKK416 (inputs for spare parts)",38.50,2,"NOS",77.00],
+          [15,"87084000","28130-62M02-5PK Boot,Shift Lever(Black)AKK416 (inputs for spare parts)",38.50,2,"NOS",77.00],
+          [16,"85115000","31400-62M00-000 Generator Assy, AKK416 (inputs for spare parts)",198.30,3,"NOS",594.90],
+          [17,"85115000","31400-62M00-000 Generator Assy, AKK416 (inputs for spare parts)",198.30,14,"NOS",2776.20],
+          [18,"39263090","38840-51K00-000 Nozzle,Washer Rear A5B412 (inputs for spareparts)",1.69,6,"NOS",10.14],
+          [19,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,37,"NOS",95.83],
+          [20,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,92,"NOS",238.28],
+          [21,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,11,"NOS",28.49],
+          [22,"87089900","69510-51K00-000 Hinge,Back Door A5B412 (inputs for spare parts)",2.59,9,"NOS",23.31],
+          [23,"39263090","75441-62J10-000 Pedal Footrest (inputs for spare parts)",3.48,7,"NOS",24.36],
+          [24,"40103999","95141-62M00-000 Poly-V Belt (inputs for spare parts)",11.99,5,"NOS",59.95],
+          [25,"84213100","13780-62M00-000 Air Filter (inputs for spare parts)",11.77,312,"NOS",3672.24],
+          [26,"87089900","72390-61M00-000 Absorber,Fr Bumper,AKK416 (inputs for spareparts)",56.51,9,"NOS",508.59],
+          [27,"87089900","72390-61M00-000 Absorber,Fr Bumper,AKK416 (inputs for spareparts)",56.51,26,"NOS",1469.26],
+          [28,"87089900","72390-61M00-000 Absorber,Fr Bumper,AKK416 (inputs for spareparts)",56.51,5,"NOS",282.55],
+          [29,"84213100","13780-62M00-000 Air Filter (inputs for spare parts)",11.77,37,"NOS",435.49],
+          [30,"87089900","72390-61M00-000 Absorber,Fr Bumper,AKK416 (inputs for spareparts)",56.51,16,"NOS",904.16],
+          [31,"87089900","72390-61M00-000 Absorber,Fr Bumper,AKK416 (inputs for spareparts)",56.51,19,"NOS",1073.69],
+          [32,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,7,"NOS",731.50],
+          [33,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,5,"NOS",522.50],
+          [34,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,4,"NOS",418.00],
+          [35,"84159000","95310-62M00-000 Condenser Assy AKK416 (inputs for spare parts)",104.50,1,"NOS",104.50],
+          [36,"39263090","13170-62M00-000 Cover Comp,Engine (inputs for spare parts)",50.60,2,"NOS",101.20],
+          [37,"39263090","13170-62M00-000 Cover Comp,Engine (inputs for spare parts)",50.60,1,"NOS",50.60],
+          [38,"39263090","13170-62M00-000 Cover Comp,Engine (inputs for spare parts)",50.60,1,"NOS",50.60],
+          [39,"39263090","13760-62M01-000 Pipe, Suction (inputs for spare parts)",11.88,4,"NOS",47.52],
+          [40,"84099199","14110-61M12-H02 Manifold,Exhaust AKK416 (inputs for spare parts)",708.55,2,"NOS",1417.10],
+          [41,"39269099","17100-62M00-000 Fan,Engine Cooling,AKK416 (inputs for spareparts)",163.53,1,"NOS",163.53],
+          [42,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,4,"NOS",833.08],
+          [43,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,2,"NOS",416.54],
+          [44,"84159000","17700-62M00-000 Radiator Assy AKK416D (inputs for spare parts)",208.27,3,"NOS",624.81],
+          [45,"85114000","31100-55L01-000 Motor, Starting RW420D (inputs for spare parts)",143.00,4,"NOS",572.00],
+          [46,"87085000","44101-61M21-000 Shaft, Front Drive AKK416 (inputs for spareparts)",216.85,1,"NOS",216.85],
+          [47,"87085000","44102-61M20-000 Shaft, Front Drive AKK416 (inputs for spareparts)",187.06,1,"NOS",187.06],
+          [48,"87082900","73512-61M20-5PK Garnish,I/P Asst(Black)AKK416 (inputs for spare parts)",41.48,5,"NOS",207.40],
+          [49,"39269099","17100-62M00-000 Fan,Engine Cooling,AKK416 (inputs for spareparts)",163.53,6,"NOS",981.18]
+        ]}
+    ],
+    supportingDocs:[
+      {inv:0,item:0, type:"78000", icegate:"MARUTISUZUKI", irn:"2025012100008433", place:"Hungary", date:"21-Jan-2025"},
+      {inv:0,item:0, type:"71000", icegate:"MARUTISUZUKI", irn:"2025012100008434", place:"Hungary", date:"21-Jan-2025"},
+      {inv:0,item:0, type:"10100", icegate:"MARUTISUZUKI", irn:"2025012700014411", place:"India",   date:"27-Jan-2025"},
+      {inv:0,item:0, type:"71000", icegate:"MARUTISUZUKI", irn:"2025012700016177", place:"Hungary", date:"27-Jan-2025"},
+      {inv:1,item:0, type:"33100", icegate:"MARUTISUZUKI", irn:"2025012100008432", place:"Hungary", date:"09-Oct-2024"},
+      {inv:2,item:0, type:"33100", icegate:"MARUTISUZUKI", irn:"2025012100008431", place:"Hungary", date:"22-Oct-2024"},
+      {inv:3,item:0, type:"33100", icegate:"MARUTISUZUKI", irn:"2025012100008430", place:"Hungary", date:"07-Nov-2024"}
+    ],
+    declarations:[
+      {for:"0/0", key:"D"}, {for:"0/0", key:"E"},
+      {for:"1/0", key:"B"}, {for:"1/0", key:"C"}, {for:"1/0", key:"A"},
+      {for:"2/0", key:"A"}, {for:"2/0", key:"B"}, {for:"2/0", key:"C"},
+      {for:"2/1", key:"IUPAC"}, {for:"2/7", key:"IUPAC"}, {for:"2/9", key:"IUPAC"},
+      {for:"3/0", key:"C"}, {for:"3/0", key:"A"}, {for:"3/0", key:"B"},
+      {for:"3/2", key:"IUPAC"}, {for:"3/5", key:"IUPAC"}, {for:"3/18", key:"IUPAC"},
+      {for:"3/23", key:"IUPAC"}, {for:"3/36", key:"IUPAC"}, {for:"3/37", key:"IUPAC"},
+      {for:"3/38", key:"IUPAC"}, {for:"3/39", key:"IUPAC"}, {for:"3/41", key:"IUPAC"}, {for:"3/49", key:"IUPAC"}
+    ],
+    signatory:{ chaName:"Filed by IEC himself", date:null, place:null }
+  }
+};
+
+/* Part III item duties for the two sample bills (from the pipeline's extraction + cross-checks). */
+const BUILTIN_DUTIES = {"D1":{"1":{"1":{"cth":"87089900","assessValue":563345.29,"totalDuty":211085.5,"bcdRate":15.0,"bcdAmount":84501.8,"swsAmount":8450.2,"igstRate":18.0,"igstAmount":118133.5},"2":{"cth":"87089900","assessValue":17604.54,"totalDuty":6596.5,"bcdRate":15.0,"bcdAmount":2640.7,"swsAmount":264.1,"igstRate":18.0,"igstAmount":3691.7},"3":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"4":{"cth":"87089900","assessValue":26372.17,"totalDuty":9881.6,"bcdRate":15.0,"bcdAmount":3955.8,"swsAmount":395.6,"igstRate":18.0,"igstAmount":5530.2},"5":{"cth":"87089900","assessValue":17535.3,"totalDuty":6570.5,"bcdRate":15.0,"bcdAmount":2630.3,"swsAmount":263.0,"igstRate":18.0,"igstAmount":3677.2},"6":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"7":{"cth":"87089900","assessValue":17535.3,"totalDuty":6570.5,"bcdRate":15.0,"bcdAmount":2630.3,"swsAmount":263.0,"igstRate":18.0,"igstAmount":3677.2},"8":{"cth":"87089900","assessValue":17535.3,"totalDuty":6570.5,"bcdRate":15.0,"bcdAmount":2630.3,"swsAmount":263.0,"igstRate":18.0,"igstAmount":3677.2},"9":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"10":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"11":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"12":{"cth":"87089900","assessValue":8767.65,"totalDuty":3285.2,"bcdRate":15.0,"bcdAmount":1315.1,"swsAmount":131.5,"igstRate":18.0,"igstAmount":1838.6},"13":{"cth":"87089900","assessValue":17741.13,"totalDuty":6647.6,"bcdRate":15.0,"bcdAmount":2661.2,"swsAmount":266.1,"igstRate":18.0,"igstAmount":3720.3},"14":{"cth":"87089900","assessValue":26898.83,"totalDuty":10079.0,"bcdRate":15.0,"bcdAmount":4034.8,"swsAmount":403.5,"igstRate":18.0,"igstAmount":5640.7},"15":{"cth":"87089900","assessValue":82957.81,"totalDuty":31084.4,"bcdRate":15.0,"bcdAmount":12443.7,"swsAmount":1244.4,"igstRate":18.0,"igstAmount":17396.3},"16":{"cth":"87089900","assessValue":827413.39,"totalDuty":310031.8,"bcdRate":15.0,"bcdAmount":124112.0,"swsAmount":12411.2,"igstRate":18.0,"igstAmount":173508.6},"17":{"cth":"87089900","assessValue":70418.16,"totalDuty":26385.7,"bcdRate":15.0,"bcdAmount":10562.7,"swsAmount":1056.3,"igstRate":18.0,"igstAmount":14766.7},"18":{"cth":"87089900","assessValue":17558.4,"totalDuty":6579.2,"bcdRate":15.0,"bcdAmount":2633.8,"swsAmount":263.4,"igstRate":18.0,"igstAmount":3682.0},"19":{"cth":"87089900","assessValue":35162.89,"totalDuty":13175.5,"bcdRate":15.0,"bcdAmount":5274.4,"swsAmount":527.4,"igstRate":18.0,"igstAmount":7373.7},"20":{"cth":"87089900","assessValue":52605.9,"totalDuty":19711.5,"bcdRate":15.0,"bcdAmount":7890.9,"swsAmount":789.1,"igstRate":18.0,"igstAmount":11031.5},"21":{"cth":"87089900","assessValue":26302.95,"totalDuty":9855.6,"bcdRate":15.0,"bcdAmount":3945.4,"swsAmount":394.5,"igstRate":18.0,"igstAmount":5515.7},"22":{"cth":"87089900","assessValue":62093.97,"totalDuty":23266.6,"bcdRate":15.0,"bcdAmount":9314.1,"swsAmount":931.4,"igstRate":18.0,"igstAmount":13021.1},"23":{"cth":"87089900","assessValue":35865.1,"totalDuty":13438.7,"bcdRate":15.0,"bcdAmount":5379.8,"swsAmount":538.0,"igstRate":18.0,"igstAmount":7520.9},"24":{"cth":"87089900","assessValue":44831.38,"totalDuty":16798.3,"bcdRate":15.0,"bcdAmount":6724.7,"swsAmount":672.5,"igstRate":18.0,"igstAmount":9401.1}}},"D2":{"1":{"1":{"cth":"40169950","assessValue":242781.13,"totalDuty":50935.5,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":2427.8,"igstRate":18.0,"igstAmount":48507.7},"2":{"cth":"40169950","assessValue":573846.3,"totalDuty":120393.0,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":5738.5,"igstRate":18.0,"igstAmount":114654.5},"3":{"cth":"87089900","assessValue":14513.52,"totalDuty":4952.0,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":217.7,"igstRate":28.0,"igstAmount":4734.3},"4":{"cth":"40169950","assessValue":264852.14,"totalDuty":55566.0,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":2648.5,"igstRate":18.0,"igstAmount":52917.5},"5":{"cth":"40169950","assessValue":157255.96,"totalDuty":32992.3,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":1572.6,"igstRate":18.0,"igstAmount":31419.7},"6":{"cth":"87085000","assessValue":52411.18,"totalDuty":17882.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":786.2,"igstRate":28.0,"igstAmount":17096.5},"7":{"cth":"87082900","assessValue":11622.02,"totalDuty":3965.4,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":174.3,"igstRate":28.0,"igstAmount":3791.1},"8":{"cth":"87089900","assessValue":111106.88,"totalDuty":37909.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1666.6,"igstRate":28.0,"igstAmount":36243.1},"9":{"cth":"87089900","assessValue":19482.11,"totalDuty":6647.3,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":292.2,"igstRate":28.0,"igstAmount":6355.1},"10":{"cth":"73181500","assessValue":483.78,"totalDuty":108.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":7.3,"igstRate":18.0,"igstAmount":101.5},"11":{"cth":"40093100","assessValue":23574.66,"totalDuty":4945.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":235.7,"igstRate":18.0,"igstAmount":4710.2},"12":{"cth":"84835090","assessValue":20397.38,"totalDuty":4127.4,"bcdRate":7.5,"bcdAmount":0.0,"swsAmount":153.0,"igstRate":18.0,"igstAmount":3974.4},"13":{"cth":"84835090","assessValue":106142.03,"totalDuty":21477.9,"bcdRate":7.5,"bcdAmount":0.0,"swsAmount":796.1,"igstRate":18.0,"igstAmount":20681.8},"14":{"cth":"87084000","assessValue":32230.48,"totalDuty":10997.1,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":483.5,"igstRate":28.0,"igstAmount":10513.6},"15":{"cth":"87084000","assessValue":3595.69,"totalDuty":1226.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":53.9,"igstRate":28.0,"igstAmount":1172.9},"16":{"cth":"87082900","assessValue":4418.5,"totalDuty":1507.6,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":66.3,"igstRate":28.0,"igstAmount":1441.3},"17":{"cth":"40103999","assessValue":51510.86,"totalDuty":10807.0,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":515.1,"igstRate":18.0,"igstAmount":10291.9},"18":{"cth":"87085000","assessValue":20252.62,"totalDuty":6910.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":303.8,"igstRate":28.0,"igstAmount":6606.4},"19":{"cth":"87085000","assessValue":20252.62,"totalDuty":6910.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":303.8,"igstRate":28.0,"igstAmount":6606.4},"20":{"cth":"87085000","assessValue":20252.62,"totalDuty":6910.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":303.8,"igstRate":28.0,"igstAmount":6606.4},"21":{"cth":"87082900","assessValue":1472.83,"totalDuty":502.5,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":22.1,"igstRate":28.0,"igstAmount":480.4},"22":{"cth":"40093100","assessValue":23574.66,"totalDuty":4945.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":235.7,"igstRate":18.0,"igstAmount":4710.2},"23":{"cth":"40093100","assessValue":20206.86,"totalDuty":4239.4,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":202.1,"igstRate":18.0,"igstAmount":4037.3},"24":{"cth":"40103999","assessValue":22396.02,"totalDuty":4698.7,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":224.0,"igstRate":18.0,"igstAmount":4474.7},"25":{"cth":"40103999","assessValue":6718.81,"totalDuty":1409.6,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":67.2,"igstRate":18.0,"igstAmount":1342.4},"26":{"cth":"87089900","assessValue":241.89,"totalDuty":82.5,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":3.6,"igstRate":28.0,"igstAmount":78.9},"27":{"cth":"87089900","assessValue":7256.76,"totalDuty":2476.1,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":108.9,"igstRate":28.0,"igstAmount":2367.2},"28":{"cth":"87089900","assessValue":6531.08,"totalDuty":2228.4,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":98.0,"igstRate":28.0,"igstAmount":2130.4}},"2":{"1":{"cth":"39263090","assessValue":14177.3,"totalDuty":3185.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":212.7,"igstRate":18.0,"igstAmount":2973.0},"2":{"cth":"84159000","assessValue":136159.08,"totalDuty":43679.8,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":1361.6,"igstRate":28.0,"igstAmount":42318.2},"3":{"cth":"84159000","assessValue":116707.78,"totalDuty":37439.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":1167.1,"igstRate":28.0,"igstAmount":36272.8},"4":{"cth":"84159000","assessValue":97256.49,"totalDuty":31199.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":972.6,"igstRate":28.0,"igstAmount":30227.3},"5":{"cth":"84159000","assessValue":97256.49,"totalDuty":31199.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":972.6,"igstRate":28.0,"igstAmount":30227.3},"6":{"cth":"85114000","assessValue":133554.3,"totalDuty":45568.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":2003.3,"igstRate":28.0,"igstAmount":43565.4},"7":{"cth":"39263090","assessValue":9451.54,"totalDuty":2123.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":141.8,"igstRate":18.0,"igstAmount":1982.0},"8":{"cth":"84099199","assessValue":66174.76,"totalDuty":22578.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":992.6,"igstRate":28.0,"igstAmount":21586.2},"9":{"cth":"39269099","assessValue":45818.47,"totalDuty":10295.4,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":687.3,"igstRate":18.0,"igstAmount":9608.1},"10":{"cth":"85114000","assessValue":146909.73,"totalDuty":50125.6,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":2203.6,"igstRate":28.0,"igstAmount":47922.0},"11":{"cth":"87085000","assessValue":20252.62,"totalDuty":6910.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":303.8,"igstRate":28.0,"igstAmount":6606.4},"12":{"cth":"87085000","assessValue":17470.4,"totalDuty":5961.0,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":262.1,"igstRate":28.0,"igstAmount":5698.9},"13":{"cth":"87089900","assessValue":11127.03,"totalDuty":3796.5,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":166.9,"igstRate":28.0,"igstAmount":3629.6},"14":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"15":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"16":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"17":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"18":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"19":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"20":{"cth":"84159000","assessValue":9759.74,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"21":{"cth":"87082900","assessValue":3874.01,"totalDuty":1321.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":58.1,"igstRate":28.0,"igstAmount":1263.7},"22":{"cth":"87082900","assessValue":3874.01,"totalDuty":1321.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":58.1,"igstRate":28.0,"igstAmount":1263.7},"23":{"cth":"87082900","assessValue":3874.01,"totalDuty":1321.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":58.1,"igstRate":28.0,"igstAmount":1263.7},"24":{"cth":"87082900","assessValue":3874.01,"totalDuty":1321.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":58.1,"igstRate":28.0,"igstAmount":1263.7}},"3":{"1":{"cth":"40169950","assessValue":14177.3,"totalDuty":2974.4,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":141.8,"igstRate":18.0,"igstAmount":2832.6},"2":{"cth":"39263090","assessValue":1109.53,"totalDuty":249.3,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":16.6,"igstRate":18.0,"igstAmount":232.7},"3":{"cth":"73181500","assessValue":190.52,"totalDuty":42.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":2.9,"igstRate":18.0,"igstAmount":40.0},"4":{"cth":"73181500","assessValue":156.9,"totalDuty":35.3,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":2.4,"igstRate":18.0,"igstAmount":32.9},"5":{"cth":"39263090","assessValue":1109.53,"totalDuty":249.3,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":16.6,"igstRate":18.0,"igstAmount":232.7},"6":{"cth":"40169950","assessValue":2362.88,"totalDuty":495.7,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":23.6,"igstRate":18.0,"igstAmount":472.1},"7":{"cth":"87089900","assessValue":42326.42,"totalDuty":14441.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":634.9,"igstRate":28.0,"igstAmount":13806.9},"8":{"cth":"87089900","assessValue":71913.83,"totalDuty":24537.0,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1078.7,"igstRate":28.0,"igstAmount":23458.3},"9":{"cth":"87089900","assessValue":32361.22,"totalDuty":11041.6,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":485.4,"igstRate":28.0,"igstAmount":10556.2},"10":{"cth":"87089900","assessValue":35067.8,"totalDuty":11965.1,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":526.0,"igstRate":28.0,"igstAmount":11439.1},"11":{"cth":"73181500","assessValue":26.15,"totalDuty":5.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":0.4,"igstRate":18.0,"igstAmount":5.5},"12":{"cth":"84122100","assessValue":83839.38,"totalDuty":16964.9,"bcdRate":7.5,"bcdAmount":0.0,"swsAmount":628.8,"igstRate":18.0,"igstAmount":16336.1},"13":{"cth":"84122100","assessValue":76549.0,"totalDuty":15489.7,"bcdRate":7.5,"bcdAmount":0.0,"swsAmount":574.1,"igstRate":18.0,"igstAmount":14915.6},"14":{"cth":"87084000","assessValue":7191.38,"totalDuty":2453.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":107.9,"igstRate":28.0,"igstAmount":2345.8},"15":{"cth":"87084000","assessValue":7191.38,"totalDuty":2453.7,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":107.9,"igstRate":28.0,"igstAmount":2345.8},"16":{"cth":"85115000","assessValue":55560.44,"totalDuty":18957.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":833.4,"igstRate":28.0,"igstAmount":18123.8},"17":{"cth":"85115000","assessValue":259282.04,"totalDuty":88467.0,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":3889.2,"igstRate":28.0,"igstAmount":84577.8},"18":{"cth":"39263090","assessValue":947.02,"totalDuty":212.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":14.2,"igstRate":18.0,"igstAmount":198.6},"19":{"cth":"87089900","assessValue":8950.0,"totalDuty":3053.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":134.3,"igstRate":28.0,"igstAmount":2919.5},"20":{"cth":"87089900","assessValue":22254.06,"totalDuty":7593.1,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":333.8,"igstRate":28.0,"igstAmount":7259.3},"21":{"cth":"87089900","assessValue":2660.81,"totalDuty":907.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":39.9,"igstRate":28.0,"igstAmount":868.0},"22":{"cth":"87089900","assessValue":2177.03,"totalDuty":742.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":32.7,"igstRate":28.0,"igstAmount":710.2},"23":{"cth":"39263090","assessValue":2275.09,"totalDuty":511.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":34.1,"igstRate":18.0,"igstAmount":477.1},"24":{"cth":"40103999","assessValue":5599.01,"totalDuty":1174.7,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":56.0,"igstRate":18.0,"igstAmount":1118.7},"25":{"cth":"84213100","assessValue":342967.32,"totalDuty":71954.6,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":3429.7,"igstRate":18.0,"igstAmount":68524.9},"26":{"cth":"87089900","assessValue":47499.55,"totalDuty":16206.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":712.5,"igstRate":28.0,"igstAmount":15494.4},"27":{"cth":"87089900","assessValue":137220.92,"totalDuty":46819.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":2058.3,"igstRate":28.0,"igstAmount":44761.5},"28":{"cth":"87089900","assessValue":26388.64,"totalDuty":9003.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":395.8,"igstRate":28.0,"igstAmount":8608.0},"29":{"cth":"84213100","assessValue":40672.41,"totalDuty":8533.1,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":406.7,"igstRate":18.0,"igstAmount":8126.4},"30":{"cth":"87089900","assessValue":84443.65,"totalDuty":28812.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1266.7,"igstRate":28.0,"igstAmount":27545.5},"31":{"cth":"87089900","assessValue":100276.83,"totalDuty":34214.5,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1504.2,"igstRate":28.0,"igstAmount":32710.3},"32":{"cth":"84159000","assessValue":68318.14,"totalDuty":21916.5,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":683.2,"igstRate":28.0,"igstAmount":21233.3},"33":{"cth":"84159000","assessValue":48798.67,"totalDuty":15654.6,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":488.0,"igstRate":28.0,"igstAmount":15166.6},"34":{"cth":"84159000","assessValue":39038.94,"totalDuty":12523.7,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":390.4,"igstRate":28.0,"igstAmount":12133.3},"35":{"cth":"84159000","assessValue":9759.73,"totalDuty":3130.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":97.6,"igstRate":28.0,"igstAmount":3033.3},"36":{"cth":"39263090","assessValue":9451.53,"totalDuty":2123.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":141.8,"igstRate":18.0,"igstAmount":1982.0},"37":{"cth":"39263090","assessValue":4725.77,"totalDuty":1061.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":70.9,"igstRate":18.0,"igstAmount":991.0},"38":{"cth":"39263090","assessValue":4725.77,"totalDuty":1061.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":70.9,"igstRate":18.0,"igstAmount":991.0},"39":{"cth":"39263090","assessValue":4438.11,"totalDuty":997.3,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":66.6,"igstRate":18.0,"igstAmount":930.7},"40":{"cth":"84099199","assessValue":132349.46,"totalDuty":45157.6,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1985.2,"igstRate":28.0,"igstAmount":43172.4},"41":{"cth":"39269099","assessValue":15272.82,"totalDuty":3431.8,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":229.1,"igstRate":18.0,"igstAmount":3202.7},"42":{"cth":"84159000","assessValue":77805.16,"totalDuty":24959.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":778.1,"igstRate":28.0,"igstAmount":24181.8},"43":{"cth":"84159000","assessValue":38902.58,"totalDuty":12479.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":389.0,"igstRate":28.0,"igstAmount":12090.9},"44":{"cth":"84159000","assessValue":58353.87,"totalDuty":18719.9,"bcdRate":10.0,"bcdAmount":0.0,"swsAmount":583.5,"igstRate":28.0,"igstAmount":18136.4},"45":{"cth":"85114000","assessValue":53421.7,"totalDuty":18227.5,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":801.3,"igstRate":28.0,"igstAmount":17426.2},"46":{"cth":"87085000","assessValue":20252.62,"totalDuty":6910.2,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":303.8,"igstRate":28.0,"igstAmount":6606.4},"47":{"cth":"87085000","assessValue":17470.39,"totalDuty":5960.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":262.1,"igstRate":28.0,"igstAmount":5698.8},"48":{"cth":"87082900","assessValue":19370.04,"totalDuty":6609.1,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":290.6,"igstRate":28.0,"igstAmount":6318.5},"49":{"cth":"39269099","assessValue":91636.9,"totalDuty":20590.9,"bcdRate":15.0,"bcdAmount":0.0,"swsAmount":1374.6,"igstRate":18.0,"igstAmount":19216.3}}}};
+Object.keys(BUILTIN_DUTIES).forEach(function(k){
+  DOCS[k].invoices.forEach(function(inv){ inv.duties = BUILTIN_DUTIES[k][String(inv.sno)] || {}; });
+});
+
+const TXT = {
+  A:"All conditions or restrictions, if any, imposed by the seller or any third party on the disposition or use of the imported goods are specified above.",
+  B:"The price paid or payable by the importer is as per the details provided above; any price adjustment after the fact will be settled per the attached contract.",
+  C:"There are no payments actually paid or payable for the imported goods by way of cost and services other than those declared as miscellaneous charges.",
+  D:"The contents of the above invoice(s) and documents are true and correct in every respect; any later-discovered discrepancy will be disclosed to the Commissioner of Customs.",
+  E:"The contents of this Bill of Entry match the referenced Bill of Lading / Airway Bill / Lorry Receipt / Railway Receipt and the invoice(s) presented.",
+  IUPAC:"I certify that the information related to IUPAC & CAS number is not in my possession as the same is not provided by my supplier due to confidentiality."
+};
+
+const NAV = [
+  {part:"I", label:"Part I — Bill of Entry summary", sections:[
+    {s:"A", l:"Status"}, {s:"B", l:"Declarant"}, {s:"C", l:"Duty summary"},
+    {s:"D", l:"Manifest"}, {s:"F", l:"Payment"}, {s:"H", l:"Processing"}, {s:"J", l:"Containers"}
+  ]},
+  {part:"II", label:"Part II — Invoice & valuation", sections:[
+    {s:"A", l:"Invoice"}, {s:"B", l:"Transacting parties"}, {s:"C", l:"Valuation"},
+    {s:"D", l:"Cost & services"}, {s:"E", l:"Item details"}
+  ]},
+  {part:"III", label:"Part III — Duties", sections:[
+    {s:"A", l:"Item duties"}
+  ]},
+  {part:"IV", label:"Part IV — Additional details", sections:[
+    {s:"M", l:"Supporting documents"}
+  ]},
+  {part:"V", label:"Part V — Other compliances", sections:[
+    {s:"A", l:"Examination"}, {s:"B", l:"Compliance & remarks"}, {s:"C", l:"Out of charge"}
+  ]},
+  {part:"VI", label:"Part VI — Declaration", sections:[
+    {s:"A", l:"Declaration statements"}, {s:"B", l:"Authorized signatory"}
+  ]}
+];
+
+/* ============================================================
+   STATE + HELPERS
+   ============================================================ */
+let state = { page:"list", doc:null, part:"I", section:"A", invIdx:0, itemIdx:null, search:"" };
+
+function fmt(n){
+  if(n===null||n===undefined||n==="") return null;
+  if(typeof n!=="number") return n;
+  return n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function money(n,cur){ const v=fmt(n); return v===null?null:(cur?v+" "+cur:v); }
+function row(no,label,value){
+  const v = (value===null||value===undefined||value==="") ? '<span class="empty">— not declared</span>' : value;
+  return '<div class="field-row"><div class="fno">'+(no||"")+'</div><div class="flabel">'+label+'</div>'
+    +'<div class="fvalue">'+v+'</div></div>';
+}
+function crumb(partLabel, sectionLabel){
+  return '<div class="crumb">Part '+partLabel+' <b>&rsaquo;</b> Section '+sectionLabel+'</div>';
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function openBill(key){
+  state.doc = key; state.page = "detail"; state.part = "I"; state.section = "A";
+  state.invIdx = 0; state.itemIdx = null; render();
+}
+function backToList(){ state.page = "list"; render(); }
+function go(part, section, opts){
+  state.part = part; state.section = section; state.itemIdx = null;
+  if(opts && opts.invIdx !== undefined) state.invIdx = opts.invIdx;
+  render();
+}
+function openItem(i){ state.itemIdx = i; render(); }
+function closeItem(){ state.itemIdx = null; render(); }
+
+/* ============================================================
+   PAGE 1 — LIST
+   ============================================================ */
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+const SVG_ATTR = 'width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+const ICON_DL  = '<svg '+SVG_ATTR+'><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>';
+const ICON_DEL = '<svg '+SVG_ATTR+'><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+function pdfLinkHTML(key, d){
+  if(!API.available) return "";
+  return '<button class="row-dl" title="Download the extracted data as a PDF report" onclick="event.stopPropagation();downloadReport(\''+key+'\',this)">'+ICON_DL+'<span>PDF</span></button>';
+}
+function billRowHTML(key){
+  const d = DOCS[key];
+  return '<div class="bill-row item" onclick="openBill(\''+key+'\')">'
+    + '<div><div class="beno">'+d.boe.beNo+'</div><span class="badge">'+(d.boe.copyType||"—")+'</span>'
+    + (d.uploaded ? '<span class="badge up">Uploaded</span>' : '')
+    + '<div class="row-actions">' + pdfLinkHTML(key, d)
+    + delControlsHTML(key) + '</div>'
+    + '</div>'
+    + '<div class="field"><span class="l">Date</span> '+d.boe.beDate+'</div>'
+    + '<div class="field"><span class="l">Port</span> '+d.boe.port+'</div>'
+    + '<div class="field"><span class="l">Origin</span> '+(d.status.countryOfOrigin||"—")+'</div>'
+    + '<div class="field"><span class="l">Mode</span> '+(d.status.mode||"—")+'</div>'
+    + '<div class="field"><span class="l">Invoices / items</span> '+d.boe.totalInvoices+' inv &middot; '+d.boe.totalItems+' items</div>'
+    + '<div class="field num"><span class="l">Assessable value</span> '+(fmt(d.dutySummary.totalAssessableValue)||"—")+'</div>'
+    + '<div class="field num"><span class="l">Total duty</span> '+(fmt(d.dutySummary.totalDuty)||"—")+'</div>'
+    + '<div class="chev">&rsaquo;</div>'
+    + '</div>';
+}
+function matchesSearch(key, q){
+  if(!q) return true;
+  const d = DOCS[key];
+  const hay = [d.boe.beNo, d.boe.port, d.boe.portCode, d.boe.docType, d.status.countryOfOrigin,
+    d.status.mode, d.declarant.importerName, d.declarant.cbName, d.sourceFile].join(" ").toLowerCase();
+  return hay.indexOf(q) !== -1;
+}
+function renderBillTable(){
+  const wrap = document.getElementById("billTableWrap");
+  if(!wrap) return;
+  const q = (state.search || "").trim().toLowerCase();
+  const keys = visibleKeys().filter(function(k){ return matchesSearch(k, q); });
+  const header = '<div class="bill-row hd"><div>BE No.</div><div>Date</div><div>Port</div><div>Origin</div><div>Mode</div>'
+    + '<div>Invoices / items</div><div style="text-align:right">Assessable value</div><div style="text-align:right">Total duty</div><div></div></div>';
+  const hidden = getHidden().filter(function(k){ return DOCS[k]; });
+  const restore = hidden.length ? '<div class="restore"><a onclick="restoreHidden()">Restore '+hidden.length+' removed sample bill'+(hidden.length>1?'s':'')+'</a></div>' : '';
+  if(keys.length === 0){
+    const msg = q ? 'No bills match &ldquo;'+escapeHtml(state.search)+'&rdquo;.' : 'No bills yet. Drop a Bill of Entry PDF above to add one.';
+    wrap.innerHTML = '<div class="bill-table">' + header + '<div class="no-results">'+msg+'</div></div>' + restore;
+    return;
+  }
+  wrap.innerHTML = '<div class="bill-table">' + header + keys.map(billRowHTML).join("") + '</div>' + restore;
+}
+function onSearchInput(v){ state.search = v; renderBillTable(); }
+
+function listPageHTML(){
+  const keys = visibleKeys();
+  const totalItems = keys.reduce(function(sum,k){ return sum + (DOCS[k].boe.totalItems||0); }, 0);
+  const stats = '<div class="stats-strip">'
+    + '<div class="stat-card lead"><div class="stat-label">Bills</div><div class="stat-value">'+keys.length+'</div></div>'
+    + '<div class="stat-card"><div class="stat-label">Items across all bills</div><div class="stat-value">'+totalItems+'</div></div>'
+    + '</div>';
+  return '<div class="list-page">'
+    + '<div class="list-header">'
+    +   '<div class="title-block"><div class="title-accent"></div><h1>Indian Customs Bills</h1></div>'
+    +   '<div class="search-bar">'
+    +     '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="6.2" stroke="currentColor" stroke-width="1.6"/><path d="M13.6 13.6L17.5 17.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+    +     '<input type="text" id="billSearch" placeholder="Search by BE number, port, origin, mode, importer..." value="'+escapeHtml(state.search||"")+'" oninput="onSearchInput(this.value)">'
+    +   '</div>'
+    + '</div>'
+    + stats
+    + '<div id="uploadHost">'+uploadCardHTML()+'</div>'
+    + '<div id="billTableWrap"></div>'
+    + '</div>';
+}
+
+/* ============================================================
+   PAGE 2 — DETAIL (rail + main)
+   ============================================================ */
+function renderNav(){
+  const el = document.getElementById("navTree");
+  const doc = DOCS[state.doc];
+  let html = "";
+  NAV.forEach(function(p){
+    html += '<div class="part-label">'+p.label+'</div>';
+    if(p.part==="II" || p.part==="III"){
+      html += '<div class="inv-tabs">' + doc.invoices.map(function(inv,i){
+        const active = (state.invIdx===i && state.part===p.part) ? "active" : "";
+        return '<button class="inv-tab '+active+'" onclick="go(\''+p.part+'\',\''+(state.part===p.part?state.section:"A")+'\',{invIdx:'+i+'})">Inv '+inv.sno+'/'+doc.invoices.length+'</button>';
+      }).join("") + '</div>';
+    }
+    p.sections.forEach(function(sec){
+      const active = state.part===p.part && state.section===sec.s;
+      let extra = "";
+      if(p.part==="II" && sec.s==="E"){ extra = ' ('+doc.invoices[state.invIdx].items.length+')'; }
+      html += '<button class="sec-btn '+(active?"active":"")+'" onclick="go(\''+p.part+'\',\''+sec.s+'\')">'+sec.l+extra+'</button>';
+    });
+  });
+  el.innerHTML = html;
+}
+
+function renderMain(){
+  const doc = DOCS[state.doc];
+  const main = document.getElementById("main");
+
+  if(state.part==="I"){
+    let body="", tag="";
+    if(state.section==="A"){ tag="boe_status";
+      body = row("1","BE status",doc.status.beStatus,"be_status") + row("2","Mode",doc.status.mode,"mode")
+        + row("8","Assess",doc.status.assess,"assess") + row("9","Exam",doc.status.exam,"exam")
+        + row("10","HSS",doc.status.hss,"hss") + row("12","Prov / Final",doc.status.provFinal,"prov_final")
+        + row("13","Country of origin",doc.status.countryOfOrigin,"country_of_origin")
+        + row("14","Country of consignment",doc.status.countryOfConsignment,"country_of_consignment")
+        + row("15","Port of loading",doc.status.portOfLoading,"port_of_loading")
+        + row("16","Port of shipment",doc.status.portOfShipment,"port_of_shipment");
+    } else if(state.section==="B"){ tag="boe_declarant";
+      body = row("1","Importer name",doc.declarant.importerName,"importer_name")
+        + row("","Importer address",doc.declarant.importerAddress,"importer_address")
+        + row("2","CB name",doc.declarant.cbName,"cb_name")
+        + row("","AD code",doc.declarant.adCode,"ad_code");
+    } else if(state.section==="C"){ tag="boe_duty_summary"; const s=doc.dutySummary;
+      body = row("1","BCD",fmt(s.bcd),"bcd") + row("3","SWS",fmt(s.sws),"sws") + row("7","IGST",fmt(s.igst),"igst")
+        + row("18","Total assessable value",fmt(s.totalAssessableValue),"total_assessable_value")
+        + row("14","Total duty",fmt(s.totalDuty),"total_duty") + row("19","Total amount",fmt(s.totalAmount),"total_amount");
+    } else if(state.section==="D"){ tag="boe_manifest"; const m=doc.manifest;
+      body = row("6","MAWB no.",m.mawbNo,"mawb_no") + row("7","MAWB date",m.mawbDate,"mawb_date")
+        + row("8","HAWB no.",m.hawbNo,"hawb_no") + row("9","HAWB date",m.hawbDate,"hawb_date")
+        + row("10","Packages",m.packages,"packages") + row("11","Gross weight (kg)",m.grossWeightKg,"gross_weight_kg");
+    } else if(state.section==="F"){ tag="boe_payment";
+      body = doc.payments.map(function(p){ return row(p.srNo,"Challan "+p.challanNo,money(p.amount,"INR")+" &middot; paid "+p.paidOn,"amount"); }).join("");
+    } else if(state.section==="H"){ tag="boe_processing_event";
+      body = doc.events.map(function(e){ return row("",e.event,e.date+" &middot; "+e.time+" &middot; "+e.rate,"event_name / exchange_rate_text"); }).join("");
+    } else if(state.section==="J"){ tag="boe_container";
+      if(doc.containers.length===0){ body = row("","Containers","<span class='empty'>none declared (LCL / not containerised)</span>",""); }
+      else body = doc.containers.map(function(c){ return row(c.sno,"Container "+c.containerNumber, c.lclFcl+" &middot; truck "+c.truck+" &middot; seal "+c.seal,"container_number"); }).join("");
+    }
+    const secLabel = NAV[0].sections.find(function(x){return x.s===state.section;}).l;
+    main.innerHTML = crumb("I — Bill of Entry summary", secLabel)
+      + '<h2 class="title">'+secLabel+'</h2><div class="sheet">'+body+'</div>';
+    return;
+  }
+
+  if(state.part==="II"){
+    const inv = doc.invoices[state.invIdx];
+    const label = NAV[1].sections.find(function(x){return x.s===state.section;}).l;
+    let tag="", body="";
+    if(state.section==="A"){ tag="boe_invoice";
+      body = row("1","Invoice no.",inv.no,"invoice_no") + row("","Invoice date",inv.date,"invoice_date")
+        + row("","Invoice amount",money(inv.amount,inv.currency),"invoice_amount / currency_code");
+    } else if(state.section==="B"){ tag="boe_invoice_party"; const p=inv.parties;
+      body = row("1","Buyer",p.buyer,"role=BUYER") + row("2","Seller",p.seller,"role=SELLER")
+        + row("3","Supplier",p.supplier,"role=SUPPLIER") + row("4","Third party",p.thirdParty,"role=THIRD_PARTY");
+    } else if(state.section==="C"){ tag="boe_invoice_valuation"; const v=inv.valuation;
+      body = row("1","Invoice value",money(v.invoiceValue,inv.currency),"invoice_value")
+        + row("2","Freight",v.freight,"freight") + row("3","Insurance",v.insurance,"insurance")
+        + row("7","Pay terms",v.payTerms,"pay_terms") + row("8","Valuation method",v.valuationMethod,"valuation_method")
+        + row("9","Related party",v.relatedParty,"related_party_flag")
+        + row("10","SVB channel",v.svbCh,"svb_ch") + row("11","SVB no.",v.svbNo,"svb_no")
+        + row("15","Incoterm",v.incoterm,"incoterm");
+    } else if(state.section==="D"){ tag="boe_invoice_cost_services"; const c=inv.cost;
+      body = row("13","Misc. charge",fmt(c.miscCharge),"misc_charge") + row("14","Assessable value",fmt(c.assessValue),"assessable_value");
+    } else if(state.section==="E"){ tag="boe_invoice_item";
+      if(state.itemIdx!==null){
+        const it = inv.items[state.itemIdx];
+        const detail = '<div class="item-detail"><div class="hd">Item '+it[0]+' &middot; '+it[1]+'<button onclick="closeItem()">close &times;</button></div>'
+          + row("2","CTH",it[1],"cth") + row("3","Description",it[2],"description")
+          + row("4","Unit price",fmt(it[3]),"unit_price") + row("5","Quantity",it[4]+" "+it[5],"quantity / uqc")
+          + row("7","Amount",fmt(it[6]),"amount")
+          + '</div>'
+          + (inv.duties && inv.duties[String(it[0])] ? dutyHTML(inv.duties[String(it[0])]) : '<div class="note">Part III duty assessment for this item (BCD / SWS / IGST / CAIDC breakdown) is not loaded in this demo — boe_item_duty is schema-ready but intentionally left empty rather than risk a mistranscribed figure from the source scan.</div>');
+        main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
+          + '<h2 class="title">Item '+it[0]+' of '+inv.items.length+'</h2>'+detail;
+        return;
+      }
+      body = '<div class="items-wrap"><table class="items">'
+        + '<thead><tr><th>#</th><th>CTH</th><th>Description</th><th>Unit price</th><th>Qty</th><th>Amount</th></tr></thead>'
+        + '<tbody>' + inv.items.map(function(it,i){
+            return '<tr class="item-row" onclick="openItem('+i+')">'
+              + '<td>'+it[0]+'</td><td class="cth">'+it[1]+'</td><td>'+it[2]+'</td>'
+              + '<td class="num">'+fmt(it[3])+'</td><td class="num">'+it[4]+' '+it[5]+'</td><td class="num">'+fmt(it[6])+'</td></tr>';
+          }).join("") + '</tbody></table></div>';
+      main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
+        + '<h2 class="title">'+label+' — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2>' + body;
+      return;
+    }
+    main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
+      + '<h2 class="title">'+label+' — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2><div class="sheet">'+body+'</div>';
+    return;
+  }
+
+  if(state.part==="III"){
+    const inv = doc.invoices[state.invIdx];
+    const d = inv.duties || {};
+    const ks = Object.keys(d).sort(function(a,b){ return a-b; });
+    const head = crumb("III — Duties", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; Item duties")
+      + '<h2 class="title">Item duties — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2>';
+    if(!ks.length){
+      main.innerHTML = head + '<div class="note">No Part III duty data for this invoice.</div>'; return;
+    }
+    const t = {a:0,b:0,s:0,i:0,d:0};
+    const rows = ks.map(function(k){
+      const x=d[k]; t.a+=x.assessValue||0; t.b+=x.bcdAmount||0; t.s+=x.swsAmount||0; t.i+=x.igstAmount||0; t.d+=x.totalDuty||0;
+      const rate=function(r){ return (r===null||r===undefined)?"":r+"%"; };
+      return '<tr><td>'+k+'</td><td class="cth">'+(x.cth||"")+'</td><td class="num">'+(fmt(x.assessValue)||"")+'</td>'
+        + '<td class="num">'+rate(x.bcdRate)+'</td><td class="num">'+(fmt(x.bcdAmount)||"")+'</td><td class="num">'+(fmt(x.swsAmount)||"")+'</td>'
+        + '<td class="num">'+rate(x.igstRate)+'</td><td class="num">'+(fmt(x.igstAmount)||"")+'</td><td class="num">'+(fmt(x.totalDuty)||"")+'</td></tr>';
+    }).join("");
+    main.innerHTML = head
+      + '<div class="items-wrap"><table class="items"><thead><tr><th>Item</th><th>CTH</th><th>Assess value</th><th>BCD rate</th><th>BCD</th><th>SWS</th><th>IGST rate</th><th>IGST</th><th>Total duty</th></tr></thead>'
+      + '<tbody>'+rows+'</tbody><tfoot><tr class="tot"><td colspan="2">Invoice total ('+ks.length+' items)</td><td class="num">'+fmt(t.a)+'</td><td></td><td class="num">'+fmt(t.b)+'</td><td class="num">'+fmt(t.s)+'</td><td></td><td class="num">'+fmt(t.i)+'</td><td class="num">'+fmt(t.d)+'</td></tr></tfoot></table></div>';
+    return;
+  }
+
+  if(state.part==="V"){
+    const c = doc.compliance;
+    const label = NAV.filter(function(p){ return p.part==="V"; })[0].sections.filter(function(x){ return x.s===state.section; })[0].l;
+    const head = crumb("V — Other compliances", label) + '<h2 class="title">'+label+'</h2>';
+    if(!c){
+      main.innerHTML = head + '<div class="note">Part V was not extracted for this bill. Upload the PDF again to read it.</div>'; return;
+    }
+    const list = function(a){ return (a && a.length) ? a.join("<br>") : null; };
+    let body = "";
+    if(state.section==="A"){
+      body = row("A","Examination order (RMS)",c.examOrder,"exam_order")
+        + row("B","Examination instructions",list(c.examInstructions),"exam_instructions")
+        + row("B1","PGA examination instructions",list((c.pgaInstructions||[]).map(function(g){
+            return "Inv "+(g.inv||"–")+" &middot; Item "+(g.item||"–")+" &middot; "+(g.agency||"–")+" &middot; "+(g.status||"–"); })),"pga_instructions");
+    } else if(state.section==="B"){
+      body = row("C","Compulsory compliance",list(c.compliances),"compliances")
+        + row("D","AC remarks",list(c.acRemarks),"ac_remarks")
+        + row("E","Examination report",list(c.examReport),"exam_report")
+        + row("F","Superintendent comments",list(c.superintendentComments),"superintendent_comments");
+    } else {
+      body = row("","OOC no.",c.oocNo,"ooc_no") + row("","OOC date",c.oocDate,"ooc_date");
+    }
+    main.innerHTML = head + '<div class="sheet">'+body+'</div>';
+    return;
+  }
+
+  if(state.part==="IV"){
+    const body = doc.supportingDocs.map(function(d){
+      const scope = d.inv===0 ? "BOE level" : (d.item===0 ? "Invoice "+d.inv : "Invoice "+d.inv+" &middot; item "+d.item);
+      return row(d.type,"IRN "+d.irn, scope+" &middot; "+d.place+" &middot; "+d.date, "doc_type_code / irn");
+    }).join("");
+    main.innerHTML = crumb("IV — Additional details","Supporting documents")
+      + '<h2 class="title">Supporting documents</h2>'
+      + '<div class="sheet">'+body+'</div>'
+      + '<div class="note">Rows scoped to "Invoice N" (item = 0) are the case that needed the schema fix — a document attached to one invoice as a whole, not the whole BOE or a single item.</div>';
+    return;
+  }
+
+  if(state.part==="VI"){
+    if(state.section==="A"){
+      const body = doc.declarations.map(function(d){ return row(d.for,"Declaration "+d.for, d.text || TXT[d.key], "declaration_for / declaration_text"); }).join("");
+      main.innerHTML = crumb("VI — Declaration","Declaration statements")
+        + '<h2 class="title">Declaration statements</h2><div class="sheet">'+body+'</div>';
+    } else {
+      const s = doc.signatory;
+      main.innerHTML = crumb("VI — Declaration","Authorized signatory")
+        + '<h2 class="title">Authorized signatory</h2>'
+        + '<div class="sheet">'+row("","CHA name",s.chaName,"cha_name")+row("","Date",s.date,"signed_date")+row("","Place",s.place,"signed_place")+'</div>';
+    }
+    return;
+  }
+}
+
+/* ============================================================
+   ROOT RENDER
+   ============================================================ */
+function render(){
+  const root = document.getElementById("root");
+  if(state.page === "list"){
+    root.innerHTML = listPageHTML();
+    renderBillTable();
+    wireDrop();
+    return;
+  }
+  const doc = DOCS[state.doc];
+  root.innerHTML = '<div class="app"><aside class="rail">'
+    + '<button class="back-btn" onclick="backToList()">&larr; All bills</button>'
+    + '<div class="current-bill"><div class="cb-no">'+doc.boe.beNo+'</div><div class="cb-port">'+doc.boe.portCode+' &middot; '+doc.boe.beDate+'</div></div>'
+    + '<nav id="navTree"></nav>'
+    + '</aside><main id="main"></main></div>';
+  renderNav();
+  renderMain();
+  if(doc.quality){ document.getElementById("main").insertAdjacentHTML("afterbegin", qualityHTML(doc)); }
+}
+
+/* ============================================================
+   UPLOAD + AI KEY (needs the local server: python server.py)
+   ============================================================ */
+const API = { available:false, serverKey:false };
+const RAW = {};   // uploaded docs before HTML-escaping (used for the PDF report)
+const KEY_STORE = "boe_gemini_key";
+const UP = { busy:false, pct:0, msg:"", err:"", info:"", keyErr:"", fileName:"", done:null, pending:null, changingKey:false, checking:false };
+function getKey(){ try{ return localStorage.getItem(KEY_STORE)||""; }catch(e){ return ""; } }
+function setKey(k){ try{ if(k) localStorage.setItem(KEY_STORE,k); else localStorage.removeItem(KEY_STORE); }catch(e){} }
+function hasKey(){ return !!getKey() || API.serverKey; }
+
+function toast(msg){
+  const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 4500);
+}
+
+/* Live Gemini cost: the server reports each call; print new ones to the browser DevTools console. */
+const COST_CSS = { head:"background:#133C84;color:#fff;padding:1px 6px;border-radius:3px;font-weight:600", usd:"color:#1E6B3A;font-weight:700" };
+function logCost(c, seen, file, final){
+  if(!c) return seen;
+  (c.events||[]).slice(seen).forEach(function(e){
+    console.log("%ccost%c "+e.stage.padEnd(22)+" "+e.model.padEnd(22)+" in "+e.in.toLocaleString().padStart(7)+"  out "+e.out.toLocaleString().padStart(7)
+      +"  %c"+(e.usd===null?"unpriced":"$"+e.usd.toFixed(4))+"%c   | running total $"+e.totalUsd.toFixed(4),
+      COST_CSS.head, "", COST_CSS.usd, "");
+  });
+  if(final){
+    console.log("%ccost%c "+file+": "+c.calls+" calls, "+c.inputTokens.toLocaleString()+" input + "+c.outputTokens.toLocaleString()+" output tokens = %c$"+c.usd.toFixed(4)
+      +(c.unpricedCalls?"%c (+"+c.unpricedCalls+" unpriced calls)":"%c"), COST_CSS.head, "", COST_CSS.usd, "");
+    const rows={}; Object.keys(c.byModel||{}).forEach(function(m){ const v=c.byModel[m]; rows[m]={calls:v.calls, inputTokens:v.input, outputTokens:v.output, usd:v.usd}; });
+    console.table(rows);
+  }
+  return (c.events||[]).length;
+}
+
+const IC = {
+  up:   '<path d="M7 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 9.5a4.5 4.5 0 0 1-.5 8.5"/><path d="M12 12v8"/><path d="M9 15l3-3 3 3"/>',
+  ok:   '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  warn: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5v.01"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  key:  '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/>',
+  eye:  '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9"/><path d="M6.4 7.6A16.6 16.6 0 0 0 2 12s3.5 6 10 6c1.4 0 2.6-.3 3.7-.7"/>'
+};
+function ic(name, size){
+  const n=size||22;
+  return '<svg width="'+n+'" height="'+n+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[name]+'</svg>';
+}
+
+function dropzoneInner(){
+  if(UP.busy){
+    return '<div class="dz-icon spin"><span class="spinner"></span></div>'
+      + '<div class="dz-title">Extracting '+escapeHtml(UP.fileName||"PDF")+'</div>'
+      + '<div class="dz-sub up-msg">'+escapeHtml(UP.msg)+'</div>'
+      + '<div class="up-prog"><div class="bar"><i style="width:'+UP.pct+'%"></i></div><span class="up-pct">'+UP.pct+'%</span></div>'
+      + '<div class="dz-hint">Keep this tab open &middot; large bills take a few minutes</div>';
+  }
+  if(UP.done){
+    return '<div class="dz-icon ok">'+ic("ok",26)+'</div>'
+      + '<div class="dz-title">Extracted BE '+escapeHtml(UP.done.beNo)+'</div>'
+      + '<div class="dz-sub">'+UP.done.fields+' fields read &middot; '+(UP.done.review?UP.done.review+' need review':'all cross-checks passed')+'</div>'
+      + '<div class="dz-actions"><button class="btn primary" onclick="openBill(\''+UP.done.key+'\')">View bill</button>'
+      + '<button class="btn" onclick="UP.done=null;refreshUploadCard()">Upload another</button></div>';
+  }
+  if(UP.pending && !hasKey()){
+    return '<div class="dz-icon">'+ic("file",24)+'</div>'
+      + '<div class="dz-title">'+escapeHtml(UP.pending.name)+'</div>'
+      + '<div class="dz-sub">Ready &mdash; add your AI Key on the right to start extracting</div>'
+      + '<div class="dz-actions"><button class="btn" onclick="UP.pending=null;refreshUploadCard()">Choose a different file</button></div>';
+  }
+  if(UP.err){
+    return '<div class="dz-icon err">'+ic("warn",26)+'</div>'
+      + '<div class="dz-title">Couldn&rsquo;t extract that file</div>'
+      + '<div class="dz-sub err-text">'+escapeHtml(UP.err)+'</div>'
+      + '<div class="dz-actions"><button class="btn primary" onclick="pickPdf()">Try another file</button></div>';
+  }
+  return '<div class="dz-icon">'+ic("up",26)+'</div>'
+    + '<div class="dz-title">Drop a Bill of Entry PDF here</div>'
+    + '<div class="dz-sub">or <button class="btn primary" onclick="pickPdf()">Choose file</button></div>'
+    + '<div class="dz-hint">PDF &middot; up to 40 MB &middot; Parts I&ndash;VI are read</div>';
+}
+
+function sidePanelHTML(){
+  const stored = !!getKey() && !UP.changingKey;
+  const ready = !!getKey() || API.serverKey;
+  const pill = ready ? '<span class="pill ok">'+(getKey()?'Connected':'Server key')+'</span>' : '<span class="pill warn">Key needed</span>';
+  let keyBlock;
+  if(stored){
+    const k = getKey();
+    keyBlock = '<div class="key-card">'+ic("key",18)+'<div class="key-meta"><div class="key-name">AI Key</div>'
+      + '<div class="key-mask">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;'+escapeHtml(k.slice(-4))+'</div></div>'
+      + '<div class="key-acts"><a onclick="changeKey()">Change</a><a onclick="removeKey()">Remove</a></div></div>';
+  } else {
+    keyBlock = '<label class="fld-label" for="keyField">AI Key</label>'
+      + '<div class="keyrow"><div class="keyinput"><input type="password" id="keyField" autocomplete="off" spellcheck="false" '
+      + 'placeholder="'+(API.serverKey?'Optional — server key is configured':'Paste your AI Key')+'" onkeydown="if(event.key===\'Enter\')saveKey()">'
+      + '<button type="button" class="eye" id="eyeBtn" title="Show / hide" onclick="toggleKeyVis()">'+ic("eye",16)+'</button></div>'
+      + '<button class="btn primary" onclick="saveKey()" '+(UP.checking?'disabled':'')+'>'+(UP.checking?'Checking&hellip;':'Save')+'</button></div>'
+      + (UP.keyErr ? '<div class="fld-err">'+escapeHtml(UP.keyErr)+'</div>' : '')
+      + '<div class="fld-hint">Stored only in this browser. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get a key</a>'
+      + (UP.changingKey ? ' &middot; <a onclick="UP.changingKey=false;UP.keyErr=\'\';refreshUploadCard()">Cancel</a>' : '') + '</div>';
+  }
+  return '<div class="side-head"><span class="side-title">AI extraction</span>'+pill+'</div>'
+    + keyBlock
+    + '<div class="switch-row"><label class="switch"><input type="checkbox" id="evalChk"><span class="slider"></span></label>'
+    +   '<div><div class="sw-title">Double-check with a second model</div>'
+    +   '<div class="sw-sub">Re-reads every page independently. More thorough, but slower and costs more.</div></div></div>';
+}
+
+function uploadCardHTML(){
+  let cls = "dropzone";
+  if(UP.busy) cls += " busy"; else if(UP.done) cls += " done"; else if(UP.err) cls += " error"; else if(UP.pending && !hasKey()) cls += " waiting";
+  return '<div class="upload-card"><div class="'+cls+'" id="dropzone">'+dropzoneInner()+'</div>'
+    + '<div class="upload-side'+((UP.pending && !hasKey())?' needs-key':'')+'">'+sidePanelHTML()+'</div></div>';
+}
+function toggleKeyVis(){
+  const f=document.getElementById("keyField"), b=document.getElementById("eyeBtn"); if(!f) return;
+  const show = f.type==="password"; f.type = show ? "text" : "password"; b.innerHTML = ic(show?"eyeOff":"eye",16);
+}
+
+function refreshUploadCard(){
+  const host=document.getElementById("uploadHost"); if(!host) return;
+  const ev=document.getElementById("evalChk"); const evOn=ev&&ev.checked;
+  host.innerHTML=uploadCardHTML();
+  const e2=document.getElementById("evalChk"); if(e2&&evOn) e2.checked=true;
+  wireDrop();
+}
+function changeKey(){ UP.changingKey=true; UP.keyErr=""; refreshUploadCard(); const f=document.getElementById("keyField"); if(f) f.focus(); }
+function removeKey(){ setKey(""); UP.changingKey=false; UP.keyErr=""; refreshUploadCard(); }
+
+async function saveKey(){
+  const f=document.getElementById("keyField"); const k=f?f.value.trim():""; if(!k||UP.checking) return;
+  UP.checking=true; UP.keyErr=""; refreshUploadCard();
+  try{
+    const r=await (await fetch("/api/check-key",{ method:"POST", headers:{ "X-Gemini-Key":k } })).json();
+    UP.checking=false;
+    if(r.ok){
+      setKey(k); UP.changingKey=false; UP.keyErr="";
+      const p=UP.pending; UP.pending=null;
+      refreshUploadCard();
+      if(p) handleFile(p);
+    } else { UP.keyErr=r.error||"Key not accepted."; refreshUploadCard(); const g=document.getElementById("keyField"); if(g) g.focus(); }
+  }catch(e){ UP.checking=false; UP.keyErr="Could not reach the local server."; refreshUploadCard(); }
+}
+
+function pickPdf(){
+  if(!API.available){ toast("Upload needs the local server. Run: python server.py  then open http://127.0.0.1:8765"); return; }
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf,.pdf";
+  inp.onchange=function(){ if(inp.files[0]) handleFile(inp.files[0]); };
+  inp.click();
+}
+function wireDrop(){
+  const z=document.getElementById("dropzone"); if(!z) return;
+  ["dragenter","dragover"].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.add("over"); }); });
+  ["dragleave","drop"].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.remove("over"); }); });
+  z.addEventListener("drop",function(e){ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+}
+
+function handleFile(file){
+  if(UP.busy) return;
+  UP.err=""; UP.info=""; UP.done=null;
+  if(!API.available){ UP.err="Upload needs the local server. Run: python server.py, then open http://127.0.0.1:8765"; refreshUploadCard(); return; }
+  if(!/\.pdf$/i.test(file.name) && file.type!=="application/pdf"){ UP.err="Please choose a PDF file."; refreshUploadCard(); return; }
+  if(file.size>40*1024*1024){ UP.err="That PDF is larger than 40 MB."; refreshUploadCard(); return; }
+  if(!hasKey()){
+    UP.pending=file;
+    refreshUploadCard(); const f=document.getElementById("keyField"); if(f) f.focus(); return;
+  }
+  runExtraction(file);
+}
+
+async function runExtraction(file){
+  const ev=document.getElementById("evalChk"); const withEval=!!(ev&&ev.checked);
+  UP.busy=true; UP.pct=3; UP.fileName=file.name; UP.msg="Uploading"; refreshUploadCard();
+  let seenCost=0;
+  console.log("%ccost%c extracting "+file.name+(withEval?" (with evaluator)":"")+" — per-call cost will appear here", COST_CSS.head, "");
+  try{
+    const headers={ "X-Filename": encodeURIComponent(file.name), "X-Eval": withEval?"1":"0", "Content-Type":"application/pdf" };
+    if(getKey()) headers["X-Gemini-Key"]=getKey();
+    const r=await fetch("/api/extract",{ method:"POST", headers:headers, body:file });
+    const j=await r.json();
+    if(!r.ok){ return endUpload(j, file); }
+    for(;;){
+      await new Promise(function(res){ setTimeout(res, 1000); });
+      const s=await (await fetch("/api/jobs/"+j.jobId)).json();
+      seenCost=logCost(s.cost, seenCost, file.name, s.status!=="running");
+      if(s.status==="running"){
+        UP.msg=(s.message||"Working")+(s.total?" ("+s.done+"/"+s.total+")":"");
+        UP.pct=s.total?Math.max(3,Math.round(100*s.done/s.total)):5;
+        const m=document.querySelector(".up-msg"), b=document.querySelector(".up-prog .bar i"), pc=document.querySelector(".up-pct");
+        if(m) m.textContent=UP.msg; if(b) b.style.width=UP.pct+"%"; if(pc) pc.textContent=UP.pct+"%";
+      } else if(s.status==="done"){
+        UP.busy=false; UP.pending=null; ingestDoc(s.doc);
+        UP.done={ key:"U_"+s.doc.id, beNo:s.doc.boe.beNo, fields:(s.doc.quality&&s.doc.quality.fields)||0, review:(s.doc.quality&&(s.doc.quality.needsReview+s.doc.quality.failedChecks))||0 };
+        if(state.page==="list") render(); else toast("Extracted BE "+s.doc.boe.beNo);
+        return;
+      } else { return endUpload(s, file); }
+    }
+  } catch(e){ endUpload({ error:"Could not reach the local server." }, file); }
+}
+function endUpload(j, file){
+  UP.busy=false;
+  if(j.code==="bad_key" || j.code==="no_key"){
+    setKey(""); UP.pending=file; UP.keyErr="The AI Key was rejected. Paste a valid key to retry.";
+  } else { UP.err=j.error||"Extraction failed."; }
+  refreshUploadCard();
+}
+
+async function downloadReport(key, btn){
+  const src = RAW[key] || DOCS[key]; if(!src) return;
+  const doc = JSON.parse(JSON.stringify(src));
+  doc.declarations = (doc.declarations||[]).map(function(d){ return { "for": d["for"], text: d.text || TXT[d.key] || "" }; });
+  const old = btn.innerHTML; btn.disabled = true; btn.textContent = "Preparing…";
+  try{
+    const r = await fetch("/api/report", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(doc) });
+    if(!r.ok){ const j = await r.json().catch(function(){ return {}; }); throw new Error(j.error || ("HTTP "+r.status)); }
+    const blob = await r.blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = "BE_"+doc.boe.beNo+"_"+doc.boe.portCode+"_extracted_data.pdf";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+  }catch(e){ toast("Could not create the PDF: "+e.message); }
+  btn.disabled = false; btn.innerHTML = old;
+}
+function deepEscape(x){
+  if(typeof x==="string") return escapeHtml(x);
+  if(Array.isArray(x)) return x.map(deepEscape);
+  if(x && typeof x==="object"){ const o={}; Object.keys(x).forEach(function(k){ o[k]=deepEscape(x[k]); }); return o; }
+  return x;
+}
+function ingestDoc(doc){
+  if(!doc || !/^[0-9a-f]{12}$/.test(doc.id||"")) return;
+  RAW["U_"+doc.id] = doc;
+  DOCS["U_"+doc.id] = deepEscape(doc);      // uploaded text is untrusted: escape before it reaches innerHTML
+}
+const HIDE_STORE = "boe_hidden_samples";
+function getHidden(){ try{ return JSON.parse(localStorage.getItem(HIDE_STORE)||"[]"); }catch(e){ return []; } }
+function setHidden(a){ try{ localStorage.setItem(HIDE_STORE, JSON.stringify(a)); }catch(e){} }
+function visibleKeys(){ const h=getHidden(); return Object.keys(DOCS).filter(function(k){ return h.indexOf(k)===-1; }); }
+function restoreHidden(){ setHidden([]); render(); }
+let confirmDel = null;   // key of the bill whose inline "are you sure?" is showing
+function delControlsHTML(key){
+  if(confirmDel === key){
+    return '<span class="del-q">Delete this bill?</span>'
+      + '<button class="row-del solid" onclick="event.stopPropagation();deleteBill(\''+key+'\')">Yes, delete</button>'
+      + '<button class="row-dl" onclick="event.stopPropagation();askDelete(null)">Cancel</button>';
+  }
+  return '<button class="row-del" title="Delete this bill" onclick="event.stopPropagation();askDelete(\''+key+'\')">'+ICON_DEL+'<span>Delete</span></button>';
+}
+function askDelete(key){ confirmDel = key; renderBillTable(); }
+async function deleteBill(key){
+  const d=DOCS[key]; confirmDel = null; if(!d){ render(); return; }
+  if(d.uploaded){
+    try{
+      const r = await fetch("/api/docs/"+d.id,{ method:"DELETE" });
+      if(!r.ok) throw new Error("HTTP "+r.status);
+    }catch(e){ toast("Could not delete: "+e.message); render(); return; }
+    delete DOCS[key]; delete RAW[key];
+    toast("Deleted BE "+d.boe.beNo);
+  } else {
+    const h=getHidden(); if(h.indexOf(key)===-1) h.push(key); setHidden(h);
+    toast("Removed sample BE "+d.boe.beNo+" (restore link is under the list)");
+  }
+  render();
+}
+
+function dutyHTML(d){
+  return '<div class="item-detail" style="margin-top:12px"><div class="hd">Part III &middot; item duty</div>'
+    + row("","Assessable value",fmt(d.assessValue),"assess_value")
+    + row("1","BCD rate / amount",(d.bcdRate===null?"":d.bcdRate+"% / ")+(fmt(d.bcdAmount)||""),"bcd")
+    + row("3","SWS amount",fmt(d.swsAmount),"sws")
+    + row("5","IGST rate / amount",(d.igstRate===null?"":d.igstRate+"% / ")+(fmt(d.igstAmount)||""),"igst")
+    + row("","Total duty",fmt(d.totalDuty),"total_duty") + '</div>';
+}
+function qualityHTML(doc){
+  const q=doc.quality; if(!q) return "";
+  const bad=q.needsReview>0 || q.failedChecks>0;
+  let h='<div class="qbanner '+(bad?'warn':'ok')+'"><b>Extracted from '+(doc.sourceFile||"PDF")+'</b> &middot; '
+    +q.fields+' fields from Parts I&ndash;III, '+q.failedChecks+' failed cross-checks, '+q.needsReview+' need review'
+    +(q.evaluator?' (evaluator on)':' (evaluator off)')
+    +'. Other sections (status, parties, Part IV/VI) are read by the model but not cross-checked.';
+  if(q.review.length){
+    h+='<details><summary>Fields to review</summary><ul>'+q.review.map(function(r){
+      return '<li><code>'+r.path+'</code> = '+r.value+' <span style="color:var(--ink-soft)">(p'+(r.page||"?")+') '+(r.reasons||[]).join("; ")+'</span></li>'; }).join("")+'</ul></details>';
+  }
+  if(q.checks.length){
+    h+='<details><summary>Failed checks</summary><ul>'+q.checks.map(function(c){ return '<li>'+c.check+': '+c.message+'</li>'; }).join("")+'</ul></details>';
+  }
+  return h+'</div>';
+}
+
+async function initApi(){
+  try{
+    const c=await fetch("/api/config"); if(!c.ok) return;
+    const cfg=await c.json(); API.available=true; API.serverKey=cfg.serverKey;
+    const docs=await (await fetch("/api/docs")).json();
+    docs.forEach(ingestDoc);
+    if(state.page==="list") render(); else refreshUploadCard();
+  }catch(e){ /* opened as a plain file: upload disabled */ }
+}
+render();
+initApi();
+</script>

@@ -1,0 +1,14 @@
+# environments, caches, logs
+.venv/
+__pycache__/
+.pytest_cache/
+*.log
+*.out
+*.err
+
+# data produced by running the app (extracted bills / pipeline outputs)
+app/uploads/
+files2/*.json
+
+# unrelated file that came in the zip (css-tree library code)
+files1/error.cjs
