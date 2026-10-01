@@ -112,17 +112,56 @@ class InvoiceDetails(BaseModel):
 class SupportingDoc(BaseModel):
     invsno: S = Field(None, description="1.INVSN")
     itmsno: S = Field(None, description="2.ITMSNO (0 = whole invoice / whole BE)")
-    icegate_id: S = None
-    irn: S = None
+    doc_type: S = Field(None, description="3.TYP")
+    icegate_id: S = Field(None, description="4.ICEGATE ID")
+    irn: S = Field(None, description="5.IRN")
     doc_code: S = Field(None, description="6.DOC CODE")
-    issue_place: S = None
-    issue_date: S = None
+    issue_place: S = Field(None, description="7.ISSUE PLACE")
+    issue_date: S = Field(None, description="8.ISSUE DT")
+    expiry_date: S = Field(None, description="9.EXP DT")
+
+
+# Part IV sections other than M (supporting documents), N (containers) and O (invoice list, already in Part I).
+# Column order is the printed header order; the model returns cells in exactly this order.
+PART4_SECTIONS: dict[str, tuple[str, list[str]]] = {
+    "A": ("SVB details", ["Inv sno", "Item sno", "Ref no", "Ref date", "Port code", "Lab", "P/F", "Load date", "P/F"]),
+    "B": ("Previous BEs", ["Inv sno", "Item sno", "BE no", "BE date", "Port code", "Unit price", "Currency"]),
+    "C": ("Re-import after export", ["Inv sno", "Item sno", "Notn no", "Sl no", "Freight", "Insurance", "Duty", "SB no",
+                                     "SB date", "Port code", "S inv", "S item no"]),
+    "D": ("Manufacturer / producer / grower", ["Inv sno", "Item sno", "Type", "Manufacturer code", "Source country",
+                                              "Transit country", "Address"]),
+    "E": ("Accessory status", ["Inv sno", "Item sno", "Accessory item details"]),
+    "F": ("Licence details", ["Inv sno", "Item sno", "Lic sl no", "Lic no", "Lic date", "Code", "Port", "Debit value",
+                              "Qty", "UQC", "Debit duty"]),
+    "G": ("Scheme notification & duty foregone", ["Inv sno", "Item sno", "Exmp re", "Scheme notn", "Sch notn sl no",
+                                                  "BCD rate", "CVD rate", "BCD amt fg", "Oth amt fg"]),
+    "H": ("Certificate details", ["Certificate number", "Date", "Type"]),
+    "I": ("HSS details", ["PRC level", "IEC", "Branch sl no"]),
+    "J": ("Single window declaration", ["Inv sno", "Item sno", "Info type", "Qualifier", "Info code", "Info text",
+                                        "Info measure", "UQC"]),
+    "K": ("Single window - constituents", ["Inv sno", "Item sno", "C sno", "Name", "Code", "Percentage", "Yield pct",
+                                           "Ingredient"]),
+    "L": ("Single window - control", ["Inv sno", "Item sno", "Control type", "Location", "Start date", "End date",
+                                      "Result code", "Result text"]),
+}
+
+
+class Part4Row(BaseModel):
+    cells: list[S] = Field(description="One entry per column, in the exact column order given for the section; "
+                                       "null for a blank cell")
+
+
+class Part4Section(BaseModel):
+    code: str = Field(description="Section letter, one of A-L")
+    rows: list[Part4Row] = Field(default_factory=list)
 
 
 class Part4Page(BaseModel):
-    """Part IV - ADDITIONAL DETAILS: only M. SUPPORTING DOCUMENTS and N. CONTAINER DETAILS."""
+    """Part IV - ADDITIONAL DETAILS: M. SUPPORTING DOCUMENTS, N. CONTAINER DETAILS and sections A-L."""
     supporting_docs: list[SupportingDoc] = Field(default_factory=list)
     containers: list[Container] = Field(default_factory=list)
+    sections: list[Part4Section] = Field(default_factory=list, description="Only sections A-L that have at least one "
+                                                                         "printed data row on this page")
 
 
 class Declaration(BaseModel):

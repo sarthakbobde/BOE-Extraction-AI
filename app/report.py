@@ -214,11 +214,18 @@ def build_report(doc: dict) -> bytes:
     if sd:
         def scope(x):
             return "BE level" if not x.get("inv") else (f"Invoice {x['inv']}" if not x.get("item") else f"Invoice {x['inv']} · item {x['item']}")
-        S.append(grid(["Doc code", "IRN", "ICEGATE id", "Scope", "Place", "Date"],
-                      [[t(x.get("type")), t(x.get("irn")), t(x.get("icegate")), scope(x), t(x.get("place")), t(x.get("date"))] for x in sd],
-                      [W * .12, W * .26, W * .16, W * .18, W * .14, W * .14]))
+        S.append(grid(["Doc code", "Type", "IRN", "ICEGATE id", "Scope", "Place", "Issued", "Expires"],
+                      [[t(x.get("type")), t(x.get("docType")), t(x.get("irn")), t(x.get("icegate")), scope(x), t(x.get("place")),
+                        t(x.get("date")), t(x.get("expiry"))] for x in sd],
+                      [W * .1, W * .07, W * .22, W * .13, W * .15, W * .11, W * .11, W * .11]))
     else:
         S.append(p("None declared.", "note"))
+
+    for sec in doc.get("additional") or []:
+        cols = sec.get("columns") or []
+        n = max(len(cols), 1)
+        S.append(p(f"{t(sec.get('code'))}. {t(sec.get('title'))}", "h2"))
+        S.append(grid([escape(c) for c in cols], [[t(c) for c in r] for r in sec.get("rows") or []], [W / n] * n))
 
     # ---------------- Part V
     S.append(p("Part V — Other compliances", "h1"))

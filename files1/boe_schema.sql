@@ -19,11 +19,13 @@
 CREATE TABLE boe (
     boe_id              BIGSERIAL PRIMARY KEY,
     port_code           VARCHAR(10)  NOT NULL,   -- INDEL4
+    port_name           VARCHAR(100),            -- text printed after "PORT :" in the page header
     be_no               VARCHAR(20)  NOT NULL,   -- 7526371
     be_date             DATE         NOT NULL,
     be_type             VARCHAR(5),              -- H
     iec_br              VARCHAR(30),             -- 0588000591/9
-    copy_type           VARCHAR(30),             -- FIRST COPY
+    copy_type           VARCHAR(30),             -- FIRST COPY / OOC COPY
+    copy_label          VARCHAR(30),             -- second banner label: ASSESSED COPY / OUT OF CHARGE COPY
     gstin               VARCHAR(20),
     gst_type            VARCHAR(10),
     cb_code             VARCHAR(20),              -- customs broker code
@@ -34,6 +36,12 @@ CREATE TABLE boe (
     total_packages      SMALLINT,
     gross_weight_kg     NUMERIC(12,3),
     barcode_ref         VARCHAR(50),              -- BE0140220261441
+    -- Digital-signature block printed at the foot of Part I (page 1)
+    digital_signer        VARCHAR(200),           -- "Digitally signed by DS CENTRAL BOARD OF INDIRECT TAXES AND CUSTOMS 10"
+    digitally_signed_at   TIMESTAMPTZ,            -- "Date: 2026.09.08 11:08:58 IST"
+    signature_reason      VARCHAR(60),            -- "Reason: CUSTOMS"
+    signature_location    VARCHAR(60),            -- "Location: INDIA"
+    signature_status      VARCHAR(40),            -- e.g. "Signature Not Verified"
     source_file         VARCHAR(255),             -- original PDF filename, for traceability
     extracted_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (port_code, be_no, be_date)
@@ -181,6 +189,7 @@ CREATE TABLE boe_invoice (
     lc_date               DATE,
     contract_no           VARCHAR(50),
     contract_date         DATE,
+    ad_code               VARCHAR(20),            -- Part II "6. AD CODE" (invoice-level; Part I-B has the importer's)
     invoice_amount        NUMERIC(16,2),          -- matches Part I-I / Part IV-O summary
     currency_code         VARCHAR(5),
     UNIQUE (boe_id, invoice_sno)
@@ -195,6 +204,7 @@ CREATE TABLE boe_invoice_party (
     name         VARCHAR(200),
     address      TEXT,
     country      VARCHAR(60),
+    aeo          VARCHAR(50),               -- Part II-B "5. AEO" (Authorized Economic Operator)
     UNIQUE (invoice_id, party_role)
 );
 
@@ -204,12 +214,15 @@ CREATE TABLE boe_invoice_valuation (
     invoice_value        NUMERIC(16,2),   -- 1. INV VALUE
     freight               NUMERIC(16,2),   -- 2. FREIGHT
     insurance             NUMERIC(16,4),   -- 3. INSURANCE   (e.g. 0.046 = .046%)
+    insurance_unit        VARCHAR(10)      -- 'PERCENT' when printed with a % sign, 'AMOUNT' when a flat value
+                          CHECK (insurance_unit IN ('PERCENT','AMOUNT')),
     hss_flag              VARCHAR(5),      -- 4. HSS
     loading                NUMERIC(16,2),   -- 5. LOADING
     commission             NUMERIC(16,2),   -- 6. COMMN
     pay_terms              VARCHAR(20),     -- 7. PAY TERMS   (e.g. FC)
     valuation_method       VARCHAR(80),     -- 8. VALUATION METHOD
-    currency_code           VARCHAR(5),      -- 14. Cur
+    currency_code           VARCHAR(5),      -- 14. Cur (first value = invoice currency)
+    freight_currency_code   VARCHAR(5),      -- 14. Cur (second value, when printed = freight currency)
     related_party_flag      VARCHAR(5),      -- 9. RELTD
     svb_ch                   VARCHAR(20),     -- 10. SVB CH
     svb_no                    VARCHAR(30),     -- 11. SVB NO
@@ -250,6 +263,7 @@ CREATE TABLE boe_invoice_item (
     uqc                  VARCHAR(10),           -- unit quantity code, e.g. NOS
     amount               NUMERIC(16,2),
     -- Part III-A assessment detail for the same item:
+    upi                  NUMERIC(16,6),         -- 11. UPI (Unit Price Invoiced)
     country_of_origin    VARCHAR(5),            -- 12. COO
     commercial_qty       NUMERIC(16,6),
     commercial_uqc       VARCHAR(10),
@@ -475,10 +489,10 @@ CREATE TABLE boe_supporting_document (            -- M. SUPPORTING DOCUMENTS
     boe_id         BIGINT NOT NULL REFERENCES boe(boe_id) ON DELETE CASCADE,
     invoice_id     BIGINT REFERENCES boe_invoice(invoice_id) ON DELETE CASCADE,    -- set when source invsno > 0
     item_id        BIGINT REFERENCES boe_invoice_item(item_id) ON DELETE CASCADE,  -- set when source itmsno > 0
-    doc_type_code  VARCHAR(10),     -- e.g. 70300, 33100, 78000, 71000, 10100
-    icegate_id     VARCHAR(30),     -- e.g. NEINDELD, MARUTISUZUKI
-    irn            VARCHAR(30),
-    doc_code       VARCHAR(10),
+    doc_type_code  VARCHAR(10),     -- 3. TYP, e.g. PNM, CHR, SIU, SQC
+    icegate_id     VARCHAR(30),     -- 4. ICEGATE ID, e.g. NEINDELD, MARUTISUZUKI
+    irn            VARCHAR(30),     -- 5. IRN
+    doc_code       VARCHAR(10),     -- 6. DOC CODE, e.g. 70300, 33100, 78000, 71000, 10100
     issue_place    VARCHAR(60),
     issue_date     DATE,
     expiry_date    DATE

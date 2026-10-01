@@ -684,6 +684,10 @@ function listPageHTML(){
 /* ============================================================
    PAGE 2 — DETAIL (rail + main)
    ============================================================ */
+function sectionsFor(p, doc){
+  if(p.part !== "IV") return p.sections;
+  return p.sections.concat((doc.additional||[]).map(function(x){ return { s:x.code, l:x.code+". "+x.title }; }));
+}
 function renderNav(){
   const el = document.getElementById("navTree");
   const doc = DOCS[state.doc];
@@ -696,7 +700,7 @@ function renderNav(){
         return '<button class="inv-tab '+active+'" onclick="go(\''+p.part+'\',\''+(state.part===p.part?state.section:"A")+'\',{invIdx:'+i+'})">Inv '+inv.sno+'/'+doc.invoices.length+'</button>';
       }).join("") + '</div>';
     }
-    p.sections.forEach(function(sec){
+    sectionsFor(p, doc).forEach(function(sec){
       const active = state.part===p.part && state.section===sec.s;
       let extra = "";
       if(p.part==="II" && sec.s==="E"){ extra = ' ('+doc.invoices[state.invIdx].items.length+')'; }
@@ -845,10 +849,24 @@ function renderMain(){
   }
 
   if(state.part==="IV"){
-    const body = doc.supportingDocs.map(function(d){
+    const add = (doc.additional||[]).filter(function(x){ return x.code===state.section; })[0];
+    if(add){
+      const tbl = '<div class="items-wrap"><table class="items"><thead><tr>'
+        + add.columns.map(function(c){ return '<th>'+c+'</th>'; }).join("") + '</tr></thead><tbody>'
+        + add.rows.map(function(r){ return '<tr>' + r.map(function(c){
+            return '<td>' + ((c===null||c==="") ? '<span class="empty">&mdash;</span>' : c) + '</td>'; }).join("") + '</tr>'; }).join("")
+        + '</tbody></table></div>';
+      main.innerHTML = crumb("IV — Additional details", add.code+". "+add.title)
+        + '<h2 class="title">'+add.title+'</h2>'
+        + '<div class="note" style="margin:6px 0 12px">'+add.rows.length+' row'+(add.rows.length===1?'':'s')+' declared</div>' + tbl;
+      return;
+    }
+    const sd = doc.supportingDocs || [];
+    const body = sd.length ? sd.map(function(d){
       const scope = d.inv===0 ? "BOE level" : (d.item===0 ? "Invoice "+d.inv : "Invoice "+d.inv+" &middot; item "+d.item);
-      return row(d.type,"IRN "+d.irn, scope+" &middot; "+d.place+" &middot; "+d.date, "doc_type_code / irn");
-    }).join("");
+      const bits = [d.docType ? "Type "+d.docType : null, scope, d.icegate, d.place, d.date, d.expiry ? "expires "+d.expiry : null].filter(Boolean);
+      return row(d.type,"IRN "+d.irn, bits.join(" &middot; "), "doc_type_code / irn");
+    }).join("") : row("","Supporting documents","<span class='empty'>none declared</span>","");
     main.innerHTML = crumb("IV — Additional details","Supporting documents")
       + '<h2 class="title">Supporting documents</h2>'
       + '<div class="sheet">'+body+'</div>'

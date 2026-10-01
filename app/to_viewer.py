@@ -138,8 +138,24 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
     for _, p4 in extras.get("part4", []):
         for d in p4.supporting_docs:
             supporting.append({"inv": integer(d.invsno) or 0, "item": integer(d.itmsno) or 0, "type": v(d.doc_code),
-                               "icegate": v(d.icegate_id), "irn": v(d.irn), "place": v(d.issue_place),
-                               "date": date(d.issue_date)})
+                               "docType": v(d.doc_type), "icegate": v(d.icegate_id), "irn": v(d.irn),
+                               "place": v(d.issue_place), "date": date(d.issue_date), "expiry": date(d.expiry_date)})
+
+    from viewer_schemas import PART4_SECTIONS  # sections A-L, merged across pages, only those with data
+    merged: dict[str, list] = {}
+    for _, p4 in extras.get("part4", []):
+        for sec in p4.sections:
+            code = (sec.code or "").strip().upper()[:1]
+            if code not in PART4_SECTIONS:
+                continue
+            width = len(PART4_SECTIONS[code][1])
+            for r in sec.rows:
+                cells = [v(c) for c in r.cells][:width]
+                cells += [None] * (width - len(cells))
+                if any(cells):
+                    merged.setdefault(code, []).append(cells)
+    additional = [{"code": c, "title": PART4_SECTIONS[c][0], "columns": PART4_SECTIONS[c][1], "rows": merged[c]}
+                  for c in sorted(merged)]
 
     def lines(xs):
         return [t for t in (re.sub(r"\s+", " ", x).strip() for x in xs) if t]
@@ -201,6 +217,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
         "containers": containers,
         "invoices": invoices,
         "supportingDocs": supporting,
+        "additional": additional,
         "compliance": compliance,
         "declarations": declarations,
         "signatory": signatory,

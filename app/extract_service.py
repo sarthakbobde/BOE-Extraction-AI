@@ -23,7 +23,8 @@ import pipeline as core  # noqa: E402
 from cost import CostMeter  # noqa: E402
 from checks import run_all_checks  # noqa: E402
 from to_viewer import build_doc  # noqa: E402
-from viewer_schemas import InvoiceDetails, Part1Details, Part4Page, Part5Page, Part6Page  # noqa: E402
+from viewer_schemas import (PART4_SECTIONS, InvoiceDetails, Part1Details, Part4Page, Part5Page,  # noqa: E402
+                            Part6Page)
 
 EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
 EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")
@@ -35,8 +36,14 @@ EXTRA_PROMPTS = {
                            "Events: list every row of H. PROCESSING DETAILS that has a date.",
     "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract sections A (invoice no/date), "
                                  "B (transacting parties) and C (valuation). Join multi-line addresses with ', '.",
-    "part4": core.COMMON + "This is Part IV. Extract ONLY M. SUPPORTING DOCUMENTS rows and N. CONTAINER DETAILS rows. "
-                           "One list entry per printed row.",
+    "part4": core.COMMON + "This is Part IV (additional details). One list entry per printed DATA row; the printed "
+                           "column headers and the glossary are not data. Extract: (1) M. SUPPORTING DOCUMENTS into "
+                           "supporting_docs, (2) N. CONTAINER DETAILS into containers, and (3) for sections A-L ONLY "
+                           "those with at least one data row, a section entry with its letter and one 'cells' list per "
+                           "row, with cells in EXACTLY this column order (null for a blank cell):\n"
+                           + "\n".join(f"  {k}. {t}: " + ", ".join(cols) for k, (t, cols) in PART4_SECTIONS.items())
+                           + "\nSkip section O (invoice list). Read each row's cells from the image so values stay in "
+                             "the right column.",
     "part5": core.COMMON + "This is Part V (other compliances). Extract each section A-F and OOC No/Date only if it "
                            "has printed content; leave lists empty and values null for blank sections. One list entry "
                            "per printed line or row. Do not copy the printed section headings or glossary as content.",
