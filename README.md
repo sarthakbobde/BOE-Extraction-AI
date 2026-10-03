@@ -81,6 +81,21 @@ cost of every call (`[cost ...]` lines).
 
 Uploaded bills are stored as JSON in `app/uploads/`. The original PDF is not kept.
 
+### Confidence scores and editing
+
+- Every field shows a **confidence pill** (for example `92%`). Hover it for how the score was made.
+  - Parts I-III (summary, invoices, item duties): the real pipeline score - found on the page, passed the code
+    cross-checks, and (if switched on) confirmed by the second model.
+  - Everything else (status, parties, Part IV/V/VI, ...): a text match against the PDF - does the value
+    appear on the page? Blank values and one-letter flags are shown as `-` (not scored).
+- Fields below **80%** are highlighted amber and below **50%** red. The bar at the top of each bill counts them,
+  **Review next** jumps to the next one, and the left menu shows how many each section has.
+- **Edit any field:** click the pencil on a row, or click a table cell, then Enter to save or Esc to cancel.
+  Edited fields show `edited` in blue and count as verified. **Revert to extracted value** is in the editor.
+  - Uploaded bills: edits are saved on the server (`app/uploads/<id>.json`) together with the original value.
+  - Sample bills: edits are kept in this browser only (localStorage).
+- The PDF report uses the edited values. Bills uploaded before this feature have no scores; upload them again to get them.
+
 ### Cost in the browser console
 
 Open DevTools (F12) → **Console** before uploading. Each Gemini call prints its tokens and cost, with a running total

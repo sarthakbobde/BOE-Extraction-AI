@@ -224,7 +224,7 @@ def build_report(doc: dict) -> bytes:
     for sec in doc.get("additional") or []:
         cols = sec.get("columns") or []
         n = max(len(cols), 1)
-        S.append(p(f"{t(sec.get('code'))}. {t(sec.get('title'))}", "h2"))
+        S.append(p(t(sec.get('title')), "h2"))
         S.append(grid([escape(c) for c in cols], [[t(c) for c in r] for r in sec.get("rows") or []], [W / n] * n))
 
     # ---------------- Part V

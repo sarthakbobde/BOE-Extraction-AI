@@ -121,28 +121,31 @@ class SupportingDoc(BaseModel):
     expiry_date: S = Field(None, description="9.EXP DT")
 
 
-# Part IV sections other than M (supporting documents), N (containers) and O (invoice list, already in Part I).
-# Column order is the printed header order; the model returns cells in exactly this order.
+# Part IV sections other than supporting documents, containers and the invoice list.
+# The printed section LETTERS differ between BOE form versions (e.g. supporting documents are "M." on the 2026 form
+# and "L." on the 2025 form), so sections are identified by TITLE. Column order is the printed header order; the
+# model returns cells in exactly this order.
 PART4_SECTIONS: dict[str, tuple[str, list[str]]] = {
-    "A": ("SVB details", ["Inv sno", "Item sno", "Ref no", "Ref date", "Port code", "Lab", "P/F", "Load date", "P/F"]),
-    "B": ("Previous BEs", ["Inv sno", "Item sno", "BE no", "BE date", "Port code", "Unit price", "Currency"]),
-    "C": ("Re-import after export", ["Inv sno", "Item sno", "Notn no", "Sl no", "Freight", "Insurance", "Duty", "SB no",
-                                     "SB date", "Port code", "S inv", "S item no"]),
-    "D": ("Manufacturer / producer / grower", ["Inv sno", "Item sno", "Type", "Manufacturer code", "Source country",
-                                              "Transit country", "Address"]),
-    "E": ("Accessory status", ["Inv sno", "Item sno", "Accessory item details"]),
-    "F": ("Licence details", ["Inv sno", "Item sno", "Lic sl no", "Lic no", "Lic date", "Code", "Port", "Debit value",
-                              "Qty", "UQC", "Debit duty"]),
-    "G": ("Scheme notification & duty foregone", ["Inv sno", "Item sno", "Exmp re", "Scheme notn", "Sch notn sl no",
-                                                  "BCD rate", "CVD rate", "BCD amt fg", "Oth amt fg"]),
-    "H": ("Certificate details", ["Certificate number", "Date", "Type"]),
-    "I": ("HSS details", ["PRC level", "IEC", "Branch sl no"]),
-    "J": ("Single window declaration", ["Inv sno", "Item sno", "Info type", "Qualifier", "Info code", "Info text",
-                                        "Info measure", "UQC"]),
-    "K": ("Single window - constituents", ["Inv sno", "Item sno", "C sno", "Name", "Code", "Percentage", "Yield pct",
-                                           "Ingredient"]),
-    "L": ("Single window - control", ["Inv sno", "Item sno", "Control type", "Location", "Start date", "End date",
-                                      "Result code", "Result text"]),
+    "svb": ("SVB details", ["Inv sno", "Item sno", "Ref no", "Ref date", "Port code", "Lab", "P/F", "Load date", "P/F"]),
+    "previous_be": ("Previous BEs", ["Inv sno", "Item sno", "BE no", "BE date", "Port code", "Unit price", "Currency"]),
+    "reimport": ("Re-import after export", ["Inv sno", "Item sno", "Notn no", "Sl no", "Freight", "Insurance", "Duty",
+                                            "SB no", "SB date", "Port code", "S inv", "S item no"]),
+    "manufacturer": ("Manufacturer / producer / grower", ["Inv sno", "Item sno", "Type", "Manufacturer code",
+                                                         "Source country", "Transit country", "Address"]),
+    "accessory": ("Accessory status", ["Inv sno", "Item sno", "Accessory item details"]),
+    "licence": ("Licence details", ["Inv sno", "Item sno", "Lic sl no", "Lic no", "Lic date", "Code", "Port",
+                                    "Debit value", "Qty", "UQC", "Debit duty"]),
+    "scheme_notification": ("Scheme notification & duty foregone", ["Inv sno", "Item sno", "Exmp re", "Scheme notn",
+                                                                      "Sch notn sl no", "BCD rate", "CVD rate",
+                                                                      "BCD amt fg", "Oth amt fg"]),
+    "certificate": ("Certificate details", ["Certificate number", "Date", "Type"]),
+    "hss": ("HSS details", ["PRC level", "IEC", "Branch sl no"]),
+    "sw_declaration": ("Single window declaration", ["Inv sno", "Item sno", "Info type", "Qualifier", "Info code",
+                                                     "Info text", "Info measure", "UQC"]),
+    "sw_constituents": ("Single window - constituents", ["Inv sno", "Item sno", "C sno", "Name", "Code", "Percentage",
+                                                         "Yield pct", "Ingredient"]),
+    "sw_control": ("Single window - control", ["Inv sno", "Item sno", "Control type", "Location", "Start date",
+                                               "End date", "Result code", "Result text"]),
 }
 
 
@@ -152,15 +155,15 @@ class Part4Row(BaseModel):
 
 
 class Part4Section(BaseModel):
-    code: str = Field(description="Section letter, one of A-L")
+    code: str = Field(description="Section key exactly as listed in the prompt, e.g. 'svb' or 'sw_declaration'")
     rows: list[Part4Row] = Field(default_factory=list)
 
 
 class Part4Page(BaseModel):
-    """Part IV - ADDITIONAL DETAILS: M. SUPPORTING DOCUMENTS, N. CONTAINER DETAILS and sections A-L."""
+    """Part IV - ADDITIONAL DETAILS: supporting documents, container details and the other sections."""
     supporting_docs: list[SupportingDoc] = Field(default_factory=list)
     containers: list[Container] = Field(default_factory=list)
-    sections: list[Part4Section] = Field(default_factory=list, description="Only sections A-L that have at least one "
+    sections: list[Part4Section] = Field(default_factory=list, description="Only sections that have at least one "
                                                                          "printed data row on this page")
 
 

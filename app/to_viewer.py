@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
+from confidence import resolves, score_doc
+
 DATE_FORMATS = ("%d/%m/%Y", "%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y", "%d/%m/%y")
 
 
@@ -60,11 +62,72 @@ def rate_text(x):
     return f"{a + ' ' if a else ''}{c1} = {b + ' ' if b else ''}{c2}"
 
 
+_TOK = re.compile(r"[^.\[\]]+|\[\d+\]")
+SUMMARY_MAP = {"port_code": "boe.portCode", "be_no": "boe.beNo", "be_date": "boe.beDate", "total_invoices": "boe.totalInvoices",
+               "total_items": "boe.totalItems", "bcd": "dutySummary.bcd", "sws": "dutySummary.sws", "igst": "dutySummary.igst",
+               "total_assessable_value": "dutySummary.totalAssessableValue", "total_duty": "dutySummary.totalDuty",
+               "total_amount": "dutySummary.totalAmount", "challan_amount": "payments.0.amount"}
+SUMMARY_INV_MAP = {"invoice_no": "no", "amount": "amount", "currency": "currency"}
+HEADER_MAP = {"inv_value": "valuation.invoiceValue", "freight": "valuation.freight", "insurance": "valuation.insurance",
+              "invoice_currency": "valuation.currency", "incoterm": "valuation.incoterm", "misc_charge": "cost.miscCharge",
+              "assessable_value": "cost.assessValue"}
+ITEM_MAP = {"cth": 1, "description": 2, "unit_price": 3, "quantity": 4, "uqc": 5, "amount": 6}
+DUTY_MAP = {"cth": "cth", "assess_value": "assessValue", "total_duty": "totalDuty", "bcd_rate": "bcdRate",
+            "bcd_amount": "bcdAmount", "sws_amount": "swsAmount", "igst_rate": "igstRate", "igst_amount": "igstAmount"}
+
+
+def _toks(path: str) -> list[str]:
+    return [t[1:-1] if t.startswith("[") else t for t in _TOK.findall(path)]
+
+
+def map_pipeline_rows(rows, ex, inv_idx, item_idx) -> dict:
+    """Pipeline field scores (python paths like invoice_pages[2].items[5].unit_price) -> viewer data paths."""
+    out: dict[str, dict] = {}
+
+    def put(vp, row):
+        cur = out.get(vp)
+        if cur is None or row["score"] < cur["s"]:           # several sources for one field: keep the worst
+            out[vp] = {"s": row["score"], "b": "checked", "r": list(row["reasons"])}
+
+    for row in rows:
+        t = _toks(row["path"])
+        if not t or t[0] == "(document)":
+            continue
+        try:
+            if t[0] == "summary" and len(t) >= 2:
+                if t[1] in SUMMARY_MAP:
+                    put(SUMMARY_MAP[t[1]], row)
+                elif t[1] == "invoices" and len(t) >= 4 and t[3] in SUMMARY_INV_MAP:
+                    j = inv_idx.get(v(ex.summary.invoices[int(t[2])].sno))
+                    if j is not None:
+                        put(f"invoices.{j}.{SUMMARY_INV_MAP[t[3]]}", row)
+            elif t[0] == "invoice_pages" and len(t) >= 3:
+                page = ex.invoice_pages[int(t[1])]
+                j = inv_idx.get(v(page.invoice_sno))
+                if j is None:
+                    continue
+                if t[2] == "invoice_no":
+                    put(f"invoices.{j}.no", row)
+                elif t[2] == "header" and len(t) >= 4 and t[3] in HEADER_MAP:
+                    put(f"invoices.{j}.{HEADER_MAP[t[3]]}", row)
+                elif t[2] == "items" and len(t) >= 5 and t[4] in ITEM_MAP:
+                    jj, n = item_idx[id(page.items[int(t[3])])]
+                    put(f"invoices.{jj}.items.{n}.{ITEM_MAP[t[4]]}", row)
+            elif t[0] == "duty_items" and len(t) >= 3 and t[2] in DUTY_MAP:
+                it = ex.duty_items[int(t[1])]
+                j = inv_idx.get(v(it.invsno))
+                if j is not None:
+                    put(f"invoices.{j}.duties.{v(it.itemsn)}.{DUTY_MAP[t[2]]}", row)
+        except (IndexError, KeyError, ValueError):
+            continue
+    return out
+
+
 def first(items):
     return items[0][1] if items else None
 
 
-def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
+def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, full_text: str = "") -> dict:
     s = ex.summary
     p1 = first(extras.get("part1"))
     hdr, st, dc, mf = (p1.header, p1.status, p1.declarant, p1.manifest) if p1 else (None,) * 4
@@ -97,12 +160,17 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
     for pg in ex.invoice_pages:
         grouped.setdefault(v(pg.invoice_sno), []).append(pg)
     invoices = []
+    inv_idx: dict[str, int] = {}
+    item_idx: dict[int, tuple[int, int]] = {}
     for sno in sorted(grouped, key=lambda x: (integer(x) is None, integer(x) or 0)):
         pages = grouped[sno]
         h = next((p.header for p in pages if p.header), None)
         det = inv_details.get(sno)
         si = summary_inv.get(sno)
         items = sorted((it for p in pages for it in p.items), key=lambda it: integer(it.sno) or 0)
+        inv_idx[sno] = len(invoices)
+        for n, it in enumerate(items):
+            item_idx[id(it)] = (len(invoices), n)
         invoices.append({
             "sno": integer(sno) or len(invoices) + 1,
             "no": v(pages[0].invoice_no),
@@ -145,7 +213,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
     merged: dict[str, list] = {}
     for _, p4 in extras.get("part4", []):
         for sec in p4.sections:
-            code = (sec.code or "").strip().upper()[:1]
+            code = (sec.code or "").strip().lower()
             if code not in PART4_SECTIONS:
                 continue
             width = len(PART4_SECTIONS[code][1])
@@ -178,7 +246,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
 
     port_code = v(s.port_code)
     be_no = v(s.be_no)
-    return {
+    doc = {
         "label": f"{port_code} · BE {be_no}", "short": f"BE {be_no}", "sourceFile": filename, "uploaded": True,
         "quality": quality,
         "boe": {"portCode": port_code, "beNo": be_no, "beDate": date(s.be_date),
@@ -222,3 +290,8 @@ def build_doc(ex, extras: dict, quality: dict, filename: str) -> dict:
         "declarations": declarations,
         "signatory": signatory,
     }
+    conf = score_doc(doc, full_text) if full_text else {}
+    conf.update(map_pipeline_rows(field_rows or [], ex, inv_idx, item_idx))
+    doc["conf"] = {k: c for k, c in conf.items() if resolves(doc, k)}
+    doc["edits"] = {}
+    return doc

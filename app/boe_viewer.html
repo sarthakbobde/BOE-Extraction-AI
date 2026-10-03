@@ -260,6 +260,47 @@ table.items td.cth{ font-family:var(--mono); color:var(--ink-soft); white-space:
 .switch input:checked + .slider{ background:var(--blue); }
 .switch input:checked + .slider::before{ transform:translateX(16px); }
 .switch input:focus-visible + .slider{ box-shadow:0 0 0 3px var(--blue-pale); }
+
+/* ---------- field editing + confidence ---------- */
+.field-row.editable{ align-items:center; }
+.field-row .fmeta{ display:flex; align-items:center; gap:8px; margin-left:auto; flex:0 0 auto; }
+.fedit{ border:1px solid transparent; background:none; color:var(--ink-soft); cursor:pointer; border-radius:6px; padding:4px 6px; display:flex; opacity:.55; }
+.field-row:hover .fedit, .fedit:focus{ opacity:1; border-color:var(--line); background:#fff; color:var(--blue-deep); }
+.cpill{ font-family:var(--mono); font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:20px; cursor:help; white-space:nowrap; }
+.cpill.c-ok{ background:#E3F4E8; color:#1E6B3A; }
+.cpill.c-low{ background:#FFE9B8; color:#8A5A00; }
+.cpill.c-vlow{ background:#F8D4D4; color:#9B2C2C; }
+.cpill.c-edited{ background:var(--blue-pale); color:var(--blue-deep); }
+.cpill.none{ background:#F0F3F7; color:var(--ink-soft); font-weight:400; }
+.field-row.c-low{ background:#FFF8E6; box-shadow:inset 3px 0 0 #E0A21B; }
+.field-row.c-vlow{ background:#FDEEEE; box-shadow:inset 3px 0 0 var(--danger); }
+.field-row.c-edited{ box-shadow:inset 3px 0 0 var(--blue); }
+td.ecell{ cursor:text; }
+td.ecell:hover{ outline:1px dashed var(--blue); outline-offset:-2px; }
+td.c-low{ background:#FFF2CC; }
+td.c-vlow{ background:#FADADA; }
+td.c-edited{ background:#E8F0FB; }
+td.editing{ padding:4px; min-width:150px; }
+.ein{ width:100%; padding:8px 10px; border:1px solid var(--blue); border-radius:8px; font-family:var(--sans); font-size:14px; box-shadow:0 0 0 3px var(--blue-pale); background:#fff; color:var(--ink); }
+textarea.ein{ resize:vertical; line-height:1.4; }
+.ebtns{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.ebtns .btn{ padding:5px 12px; font-size:12.5px; }
+.eerr{ color:var(--danger); font-size:12.5px; font-weight:500; margin-top:4px; }
+.eerr:empty{ display:none; }
+.eorig{ color:var(--ink-soft); font-size:12px; margin-top:4px; }
+.navdot{ float:right; background:#E0A21B; color:#fff; border-radius:10px; padding:0 7px; font-size:11px; font-weight:700; line-height:18px; }
+.navdot.sm{ float:none; margin-left:5px; padding:0 5px; font-size:10px; line-height:15px; }
+.sec-btn.active .navdot{ background:#fff; color:#8A5A00; }
+.badge.low{ background:#FFE9B8; color:#8A5A00; margin-left:4px; }
+.rbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 16px; padding:10px 14px; border-radius:8px; font-size:13.5px; border:1px solid var(--line); }
+.rbar.warn{ background:#FFF8E6; border-color:#E8CB86; }
+.rbar.ok{ background:#EEF8F1; border-color:#9CCFAE; }
+.rbtns{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.rbtns .btn{ padding:5px 12px; font-size:12.5px; }
+.lg{ font-size:12px; color:var(--ink-soft); display:inline-flex; align-items:center; gap:5px; }
+.sw{ width:12px; height:12px; border-radius:3px; display:inline-block; border:1px solid rgba(0,0,0,.12); }
+.sw.c-low{ background:#FFE9B8; } .sw.c-vlow{ background:#F8D4D4; } .sw.c-edited{ background:var(--blue-pale); }
+h3.subtitle{ font-size:15px; margin:20px 0 8px; color:var(--blue-deep); }
 </style>
 
 <header class="topbar">
@@ -536,6 +577,9 @@ Object.keys(BUILTIN_DUTIES).forEach(function(k){
   DOCS[k].invoices.forEach(function(inv){ inv.duties = BUILTIN_DUTIES[k][String(inv.sno)] || {}; });
 });
 
+/* Per-field confidence for the sample bills: [score, basis c=checked t=text-match, reason]. */
+const BUILTIN_CONF = {"D1":{"boe.portCode":[1.0,"c"],"boe.beNo":[1.0,"c"],"boe.beDate":[1.0,"c"],"boe.iecBr":[0.9,"t"],"boe.copyType":[0.9,"t"],"boe.gstin":[0.9,"t"],"boe.cbCode":[0.9,"t"],"boe.docType":[0.9,"t"],"boe.port":[0.65,"t","only 50% of the words appear in the PDF text"],"boe.totalItems":[1.0,"c"],"boe.grossWeightKg":[0.9,"t"],"boe.barcode":[0.9,"t"],"status.beStatus":[0.9,"t"],"status.mode":[0.9,"t"],"status.countryOfOrigin":[0.9,"t"],"status.countryOfConsignment":[0.9,"t"],"status.portOfLoading":[0.9,"t"],"status.portOfShipment":[0.9,"t"],"declarant.importerName":[0.9,"t"],"declarant.importerAddress":[0.9,"t"],"declarant.cbName":[0.9,"t"],"declarant.adCode":[0.9,"t"],"dutySummary.bcd":[1.0,"c"],"dutySummary.sws":[1.0,"c"],"dutySummary.igst":[1.0,"c"],"dutySummary.totalAssessableValue":[1.0,"c"],"dutySummary.totalDuty":[1.0,"c"],"dutySummary.totalAmount":[1.0,"c"],"manifest.mawbNo":[0.9,"t"],"manifest.mawbDate":[0.9,"t"],"manifest.hawbNo":[0.9,"t"],"manifest.hawbDate":[0.9,"t"],"manifest.grossWeightKg":[0.9,"t"],"payments.0.challanNo":[0.9,"t"],"payments.0.paidOn":[0.9,"t"],"payments.0.amount":[0.9,"t"],"events.0.event":[0.9,"t"],"events.0.date":[0.9,"t"],"events.0.time":[0.9,"t"],"events.0.rate":[0.9,"t"],"events.1.event":[0.9,"t"],"events.1.date":[0.9,"t"],"events.1.time":[0.9,"t"],"events.1.rate":[0.9,"t"],"invoices.0.no":[1.0,"c"],"invoices.0.date":[0.9,"t"],"invoices.0.amount":[1.0,"c"],"invoices.0.currency":[1.0,"c"],"invoices.0.parties.buyer":[0.9,"t"],"invoices.0.parties.supplier":[0.9,"t"],"invoices.0.valuation.invoiceValue":[1.0,"c"],"invoices.0.valuation.freight":[1.0,"c"],"invoices.0.valuation.insurance":[1.0,"c"],"invoices.0.valuation.payTerms":[0.9,"t"],"invoices.0.valuation.valuationMethod":[0.9,"t"],"invoices.0.valuation.currency":[1.0,"c"],"invoices.0.valuation.relatedParty":[0.9,"t"],"invoices.0.valuation.svbCh":[0.9,"t"],"invoices.0.valuation.svbNo":[0.9,"t"],"invoices.0.valuation.svbDate":[0.9,"t"],"invoices.0.valuation.incoterm":[1.0,"c"],"invoices.0.cost.assessValue":[1.0,"c"],"invoices.0.items.0.1":[1.0,"c"],"invoices.0.items.0.2":[1.0,"c"],"invoices.0.items.0.3":[1.0,"c"],"invoices.0.items.0.4":[1.0,"c"],"invoices.0.items.0.5":[1.0,"c"],"invoices.0.items.0.6":[1.0,"c"],"invoices.0.items.1.1":[1.0,"c"],"invoices.0.items.1.2":[1.0,"c"],"invoices.0.items.1.3":[1.0,"c"],"invoices.0.items.1.5":[1.0,"c"],"invoices.0.items.1.6":[1.0,"c"],"invoices.0.items.2.1":[1.0,"c"],"invoices.0.items.2.2":[1.0,"c"],"invoices.0.items.2.3":[1.0,"c"],"invoices.0.items.2.5":[1.0,"c"],"invoices.0.items.2.6":[1.0,"c"],"invoices.0.items.3.1":[1.0,"c"],"invoices.0.items.3.2":[1.0,"c"],"invoices.0.items.3.3":[1.0,"c"],"invoices.0.items.3.5":[1.0,"c"],"invoices.0.items.3.6":[1.0,"c"],"invoices.0.items.4.1":[1.0,"c"],"invoices.0.items.4.2":[1.0,"c"],"invoices.0.items.4.3":[1.0,"c"],"invoices.0.items.4.5":[1.0,"c"],"invoices.0.items.4.6":[1.0,"c"],"invoices.0.items.5.1":[1.0,"c"],"invoices.0.items.5.2":[1.0,"c"],"invoices.0.items.5.3":[1.0,"c"],"invoices.0.items.5.5":[1.0,"c"],"invoices.0.items.5.6":[1.0,"c"],"invoices.0.items.6.1":[1.0,"c"],"invoices.0.items.6.2":[1.0,"c"],"invoices.0.items.6.3":[1.0,"c"],"invoices.0.items.6.5":[1.0,"c"],"invoices.0.items.6.6":[1.0,"c"],"invoices.0.items.7.1":[1.0,"c"],"invoices.0.items.7.2":[1.0,"c"],"invoices.0.items.7.3":[1.0,"c"],"invoices.0.items.7.5":[1.0,"c"],"invoices.0.items.7.6":[1.0,"c"],"invoices.0.items.8.1":[1.0,"c"],"invoices.0.items.8.2":[1.0,"c"],"invoices.0.items.8.3":[1.0,"c"],"invoices.0.items.8.5":[1.0,"c"],"invoices.0.items.8.6":[1.0,"c"],"invoices.0.items.9.1":[1.0,"c"],"invoices.0.items.9.2":[1.0,"c"],"invoices.0.items.9.3":[1.0,"c"],"invoices.0.items.9.5":[1.0,"c"],"invoices.0.items.9.6":[1.0,"c"],"invoices.0.items.10.1":[1.0,"c"],"invoices.0.items.10.2":[1.0,"c"],"invoices.0.items.10.3":[1.0,"c"],"invoices.0.items.10.5":[1.0,"c"],"invoices.0.items.10.6":[1.0,"c"],"invoices.0.items.11.1":[1.0,"c"],"invoices.0.items.11.2":[1.0,"c"],"invoices.0.items.11.3":[1.0,"c"],"invoices.0.items.11.5":[1.0,"c"],"invoices.0.items.11.6":[1.0,"c"],"invoices.0.items.12.1":[1.0,"c"],"invoices.0.items.12.2":[1.0,"c"],"invoices.0.items.12.3":[1.0,"c"],"invoices.0.items.12.5":[1.0,"c"],"invoices.0.items.12.6":[1.0,"c"],"invoices.0.items.13.1":[1.0,"c"],"invoices.0.items.13.2":[1.0,"c"],"invoices.0.items.13.3":[1.0,"c"],"invoices.0.items.13.5":[1.0,"c"],"invoices.0.items.13.6":[1.0,"c"],"invoices.0.items.14.1":[1.0,"c"],"invoices.0.items.14.2":[1.0,"c"],"invoices.0.items.14.3":[1.0,"c"],"invoices.0.items.14.5":[1.0,"c"],"invoices.0.items.14.6":[1.0,"c"],"invoices.0.items.15.1":[1.0,"c"],"invoices.0.items.15.2":[1.0,"c"],"invoices.0.items.15.3":[1.0,"c"],"invoices.0.items.15.4":[1.0,"c"],"invoices.0.items.15.5":[1.0,"c"],"invoices.0.items.15.6":[1.0,"c"],"invoices.0.items.16.1":[1.0,"c"],"invoices.0.items.16.2":[1.0,"c"],"invoices.0.items.16.3":[1.0,"c"],"invoices.0.items.16.5":[1.0,"c"],"invoices.0.items.16.6":[1.0,"c"],"invoices.0.items.17.1":[1.0,"c"],"invoices.0.items.17.2":[1.0,"c"],"invoices.0.items.17.3":[1.0,"c"],"invoices.0.items.17.5":[1.0,"c"],"invoices.0.items.17.6":[1.0,"c"],"invoices.0.items.18.1":[1.0,"c"],"invoices.0.items.18.2":[1.0,"c"],"invoices.0.items.18.3":[1.0,"c"],"invoices.0.items.18.5":[1.0,"c"],"invoices.0.items.18.6":[1.0,"c"],"invoices.0.items.19.1":[1.0,"c"],"invoices.0.items.19.2":[1.0,"c"],"invoices.0.items.19.3":[1.0,"c"],"invoices.0.items.19.5":[1.0,"c"],"invoices.0.items.19.6":[1.0,"c"],"invoices.0.items.20.1":[1.0,"c"],"invoices.0.items.20.2":[1.0,"c"],"invoices.0.items.20.3":[1.0,"c"],"invoices.0.items.20.5":[1.0,"c"],"invoices.0.items.20.6":[1.0,"c"],"invoices.0.items.21.1":[1.0,"c"],"invoices.0.items.21.2":[1.0,"c"],"invoices.0.items.21.3":[1.0,"c"],"invoices.0.items.21.5":[1.0,"c"],"invoices.0.items.21.6":[1.0,"c"],"invoices.0.items.22.1":[1.0,"c"],"invoices.0.items.22.2":[1.0,"c"],"invoices.0.items.22.3":[1.0,"c"],"invoices.0.items.22.5":[1.0,"c"],"invoices.0.items.22.6":[1.0,"c"],"invoices.0.items.23.1":[1.0,"c"],"invoices.0.items.23.2":[1.0,"c"],"invoices.0.items.23.3":[1.0,"c"],"invoices.0.items.23.5":[1.0,"c"],"invoices.0.items.23.6":[1.0,"c"],"invoices.0.duties.1.cth":[1.0,"c"],"invoices.0.duties.1.assessValue":[1.0,"c"],"invoices.0.duties.1.totalDuty":[1.0,"c"],"invoices.0.duties.1.bcdRate":[1.0,"c"],"invoices.0.duties.1.bcdAmount":[1.0,"c"],"invoices.0.duties.1.swsAmount":[1.0,"c"],"invoices.0.duties.1.igstRate":[1.0,"c"],"invoices.0.duties.1.igstAmount":[1.0,"c"],"invoices.0.duties.2.cth":[1.0,"c"],"invoices.0.duties.2.assessValue":[1.0,"c"],"invoices.0.duties.2.totalDuty":[1.0,"c"],"invoices.0.duties.2.bcdRate":[1.0,"c"],"invoices.0.duties.2.bcdAmount":[1.0,"c"],"invoices.0.duties.2.swsAmount":[1.0,"c"],"invoices.0.duties.2.igstRate":[1.0,"c"],"invoices.0.duties.2.igstAmount":[1.0,"c"],"invoices.0.duties.3.cth":[1.0,"c"],"invoices.0.duties.3.assessValue":[1.0,"c"],"invoices.0.duties.3.totalDuty":[1.0,"c"],"invoices.0.duties.3.bcdRate":[1.0,"c"],"invoices.0.duties.3.bcdAmount":[1.0,"c"],"invoices.0.duties.3.swsAmount":[1.0,"c"],"invoices.0.duties.3.igstRate":[1.0,"c"],"invoices.0.duties.3.igstAmount":[1.0,"c"],"invoices.0.duties.4.cth":[1.0,"c"],"invoices.0.duties.4.assessValue":[1.0,"c"],"invoices.0.duties.4.totalDuty":[1.0,"c"],"invoices.0.duties.4.bcdRate":[1.0,"c"],"invoices.0.duties.4.bcdAmount":[1.0,"c"],"invoices.0.duties.4.swsAmount":[1.0,"c"],"invoices.0.duties.4.igstRate":[1.0,"c"],"invoices.0.duties.4.igstAmount":[1.0,"c"],"invoices.0.duties.5.cth":[1.0,"c"],"invoices.0.duties.5.assessValue":[1.0,"c"],"invoices.0.duties.5.totalDuty":[1.0,"c"],"invoices.0.duties.5.bcdRate":[1.0,"c"],"invoices.0.duties.5.bcdAmount":[1.0,"c"],"invoices.0.duties.5.swsAmount":[1.0,"c"],"invoices.0.duties.5.igstRate":[1.0,"c"],"invoices.0.duties.5.igstAmount":[1.0,"c"],"invoices.0.duties.6.cth":[1.0,"c"],"invoices.0.duties.6.assessValue":[1.0,"c"],"invoices.0.duties.6.totalDuty":[1.0,"c"],"invoices.0.duties.6.bcdRate":[1.0,"c"],"invoices.0.duties.6.bcdAmount":[1.0,"c"],"invoices.0.duties.6.swsAmount":[1.0,"c"],"invoices.0.duties.6.igstRate":[1.0,"c"],"invoices.0.duties.6.igstAmount":[1.0,"c"],"invoices.0.duties.7.cth":[1.0,"c"],"invoices.0.duties.7.assessValue":[1.0,"c"],"invoices.0.duties.7.totalDuty":[1.0,"c"],"invoices.0.duties.7.bcdRate":[1.0,"c"],"invoices.0.duties.7.bcdAmount":[1.0,"c"],"invoices.0.duties.7.swsAmount":[1.0,"c"],"invoices.0.duties.7.igstRate":[1.0,"c"],"invoices.0.duties.7.igstAmount":[1.0,"c"],"invoices.0.duties.8.cth":[1.0,"c"],"invoices.0.duties.8.assessValue":[1.0,"c"],"invoices.0.duties.8.totalDuty":[1.0,"c"],"invoices.0.duties.8.bcdRate":[1.0,"c"],"invoices.0.duties.8.bcdAmount":[1.0,"c"],"invoices.0.duties.8.swsAmount":[1.0,"c"],"invoices.0.duties.8.igstRate":[1.0,"c"],"invoices.0.duties.8.igstAmount":[1.0,"c"],"invoices.0.duties.9.cth":[1.0,"c"],"invoices.0.duties.9.assessValue":[1.0,"c"],"invoices.0.duties.9.totalDuty":[1.0,"c"],"invoices.0.duties.9.bcdRate":[1.0,"c"],"invoices.0.duties.9.bcdAmount":[1.0,"c"],"invoices.0.duties.9.swsAmount":[1.0,"c"],"invoices.0.duties.9.igstRate":[1.0,"c"],"invoices.0.duties.9.igstAmount":[1.0,"c"],"invoices.0.duties.10.cth":[1.0,"c"],"invoices.0.duties.10.assessValue":[1.0,"c"],"invoices.0.duties.10.totalDuty":[1.0,"c"],"invoices.0.duties.10.bcdRate":[1.0,"c"],"invoices.0.duties.10.bcdAmount":[1.0,"c"],"invoices.0.duties.10.swsAmount":[1.0,"c"],"invoices.0.duties.10.igstRate":[1.0,"c"],"invoices.0.duties.10.igstAmount":[1.0,"c"],"invoices.0.duties.11.cth":[1.0,"c"],"invoices.0.duties.11.assessValue":[1.0,"c"],"invoices.0.duties.11.totalDuty":[1.0,"c"],"invoices.0.duties.11.bcdRate":[1.0,"c"],"invoices.0.duties.11.bcdAmount":[1.0,"c"],"invoices.0.duties.11.swsAmount":[1.0,"c"],"invoices.0.duties.11.igstRate":[1.0,"c"],"invoices.0.duties.11.igstAmount":[1.0,"c"],"invoices.0.duties.12.cth":[1.0,"c"],"invoices.0.duties.12.assessValue":[1.0,"c"],"invoices.0.duties.12.totalDuty":[1.0,"c"],"invoices.0.duties.12.bcdRate":[1.0,"c"],"invoices.0.duties.12.bcdAmount":[1.0,"c"],"invoices.0.duties.12.swsAmount":[1.0,"c"],"invoices.0.duties.12.igstRate":[1.0,"c"],"invoices.0.duties.12.igstAmount":[1.0,"c"],"invoices.0.duties.13.cth":[1.0,"c"],"invoices.0.duties.13.assessValue":[1.0,"c"],"invoices.0.duties.13.totalDuty":[1.0,"c"],"invoices.0.duties.13.bcdRate":[1.0,"c"],"invoices.0.duties.13.bcdAmount":[1.0,"c"],"invoices.0.duties.13.swsAmount":[1.0,"c"],"invoices.0.duties.13.igstRate":[1.0,"c"],"invoices.0.duties.13.igstAmount":[1.0,"c"],"invoices.0.duties.14.cth":[1.0,"c"],"invoices.0.duties.14.assessValue":[1.0,"c"],"invoices.0.duties.14.totalDuty":[1.0,"c"],"invoices.0.duties.14.bcdRate":[1.0,"c"],"invoices.0.duties.14.bcdAmount":[1.0,"c"],"invoices.0.duties.14.swsAmount":[1.0,"c"],"invoices.0.duties.14.igstRate":[1.0,"c"],"invoices.0.duties.14.igstAmount":[1.0,"c"],"invoices.0.duties.15.cth":[1.0,"c"],"invoices.0.duties.15.assessValue":[1.0,"c"],"invoices.0.duties.15.totalDuty":[1.0,"c"],"invoices.0.duties.15.bcdRate":[1.0,"c"],"invoices.0.duties.15.bcdAmount":[1.0,"c"],"invoices.0.duties.15.swsAmount":[1.0,"c"],"invoices.0.duties.15.igstRate":[1.0,"c"],"invoices.0.duties.15.igstAmount":[1.0,"c"],"invoices.0.duties.16.cth":[1.0,"c"],"invoices.0.duties.16.assessValue":[1.0,"c"],"invoices.0.duties.16.totalDuty":[1.0,"c"],"invoices.0.duties.16.bcdRate":[1.0,"c"],"invoices.0.duties.16.bcdAmount":[1.0,"c"],"invoices.0.duties.16.swsAmount":[1.0,"c"],"invoices.0.duties.16.igstRate":[1.0,"c"],"invoices.0.duties.16.igstAmount":[1.0,"c"],"invoices.0.duties.17.cth":[1.0,"c"],"invoices.0.duties.17.assessValue":[1.0,"c"],"invoices.0.duties.17.totalDuty":[1.0,"c"],"invoices.0.duties.17.bcdRate":[1.0,"c"],"invoices.0.duties.17.bcdAmount":[1.0,"c"],"invoices.0.duties.17.swsAmount":[1.0,"c"],"invoices.0.duties.17.igstRate":[1.0,"c"],"invoices.0.duties.17.igstAmount":[1.0,"c"],"invoices.0.duties.18.cth":[1.0,"c"],"invoices.0.duties.18.assessValue":[1.0,"c"],"invoices.0.duties.18.totalDuty":[1.0,"c"],"invoices.0.duties.18.bcdRate":[1.0,"c"],"invoices.0.duties.18.bcdAmount":[1.0,"c"],"invoices.0.duties.18.swsAmount":[1.0,"c"],"invoices.0.duties.18.igstRate":[1.0,"c"],"invoices.0.duties.18.igstAmount":[1.0,"c"],"invoices.0.duties.19.cth":[1.0,"c"],"invoices.0.duties.19.assessValue":[1.0,"c"],"invoices.0.duties.19.totalDuty":[1.0,"c"],"invoices.0.duties.19.bcdRate":[1.0,"c"],"invoices.0.duties.19.bcdAmount":[1.0,"c"],"invoices.0.duties.19.swsAmount":[1.0,"c"],"invoices.0.duties.19.igstRate":[1.0,"c"],"invoices.0.duties.19.igstAmount":[1.0,"c"],"invoices.0.duties.20.cth":[1.0,"c"],"invoices.0.duties.20.assessValue":[1.0,"c"],"invoices.0.duties.20.totalDuty":[1.0,"c"],"invoices.0.duties.20.bcdRate":[1.0,"c"],"invoices.0.duties.20.bcdAmount":[1.0,"c"],"invoices.0.duties.20.swsAmount":[1.0,"c"],"invoices.0.duties.20.igstRate":[1.0,"c"],"invoices.0.duties.20.igstAmount":[1.0,"c"],"invoices.0.duties.21.cth":[1.0,"c"],"invoices.0.duties.21.assessValue":[1.0,"c"],"invoices.0.duties.21.totalDuty":[1.0,"c"],"invoices.0.duties.21.bcdRate":[1.0,"c"],"invoices.0.duties.21.bcdAmount":[1.0,"c"],"invoices.0.duties.21.swsAmount":[1.0,"c"],"invoices.0.duties.21.igstRate":[1.0,"c"],"invoices.0.duties.21.igstAmount":[1.0,"c"],"invoices.0.duties.22.cth":[1.0,"c"],"invoices.0.duties.22.assessValue":[1.0,"c"],"invoices.0.duties.22.totalDuty":[1.0,"c"],"invoices.0.duties.22.bcdRate":[1.0,"c"],"invoices.0.duties.22.bcdAmount":[1.0,"c"],"invoices.0.duties.22.swsAmount":[1.0,"c"],"invoices.0.duties.22.igstRate":[1.0,"c"],"invoices.0.duties.22.igstAmount":[1.0,"c"],"invoices.0.duties.23.cth":[1.0,"c"],"invoices.0.duties.23.assessValue":[1.0,"c"],"invoices.0.duties.23.totalDuty":[1.0,"c"],"invoices.0.duties.23.bcdRate":[1.0,"c"],"invoices.0.duties.23.bcdAmount":[1.0,"c"],"invoices.0.duties.23.swsAmount":[1.0,"c"],"invoices.0.duties.23.igstRate":[1.0,"c"],"invoices.0.duties.23.igstAmount":[1.0,"c"],"invoices.0.duties.24.cth":[1.0,"c"],"invoices.0.duties.24.assessValue":[1.0,"c"],"invoices.0.duties.24.totalDuty":[1.0,"c"],"invoices.0.duties.24.bcdRate":[1.0,"c"],"invoices.0.duties.24.bcdAmount":[1.0,"c"],"invoices.0.duties.24.swsAmount":[1.0,"c"],"invoices.0.duties.24.igstRate":[1.0,"c"],"invoices.0.duties.24.igstAmount":[1.0,"c"],"supportingDocs.0.type":[0.9,"t"],"supportingDocs.0.icegate":[0.9,"t"],"supportingDocs.0.irn":[0.9,"t"],"supportingDocs.0.place":[0.9,"t"],"supportingDocs.0.date":[0.9,"t"],"supportingDocs.1.type":[0.9,"t"],"supportingDocs.1.icegate":[0.9,"t"],"supportingDocs.1.irn":[0.9,"t"],"supportingDocs.1.place":[0.9,"t"],"supportingDocs.1.date":[0.9,"t"],"supportingDocs.2.type":[0.9,"t"],"supportingDocs.2.icegate":[0.9,"t"],"supportingDocs.2.irn":[0.9,"t"],"supportingDocs.2.place":[0.9,"t"],"supportingDocs.2.date":[0.9,"t"],"signatory.chaName":[0.9,"t"],"boe.totalInvoices":[1.0,"c"],"invoices.0.items.1.4":[1.0,"c"],"invoices.0.items.2.4":[1.0,"c"],"invoices.0.items.3.4":[1.0,"c"],"invoices.0.items.4.4":[1.0,"c"],"invoices.0.items.5.4":[1.0,"c"],"invoices.0.items.6.4":[1.0,"c"],"invoices.0.items.7.4":[1.0,"c"],"invoices.0.items.8.4":[1.0,"c"],"invoices.0.items.9.4":[1.0,"c"],"invoices.0.items.10.4":[1.0,"c"],"invoices.0.items.11.4":[1.0,"c"],"invoices.0.items.12.4":[1.0,"c"],"invoices.0.items.13.4":[1.0,"c"],"invoices.0.items.14.4":[1.0,"c"],"invoices.0.items.16.4":[1.0,"c"],"invoices.0.items.17.4":[1.0,"c"],"invoices.0.items.18.4":[1.0,"c"],"invoices.0.items.19.4":[1.0,"c"],"invoices.0.items.20.4":[1.0,"c"],"invoices.0.items.21.4":[1.0,"c"],"invoices.0.items.22.4":[1.0,"c"],"invoices.0.items.23.4":[1.0,"c"]},"D2":{"boe.portCode":[1.0,"c"],"boe.beNo":[1.0,"c"],"boe.beDate":[1.0,"c"],"boe.iecBr":[0.9,"t"],"boe.copyType":[0.9,"t"],"boe.gstin":[0.9,"t"],"boe.cbCode":[0.9,"t"],"boe.docType":[0.9,"t"],"boe.port":[0.9,"t"],"boe.totalItems":[1.0,"c"],"boe.totalPackages":[0.9,"t"],"boe.grossWeightKg":[0.9,"t"],"boe.barcode":[0.9,"t"],"status.beStatus":[0.9,"t"],"status.mode":[0.9,"t"],"status.countryOfOrigin":[0.9,"t"],"status.countryOfConsignment":[0.9,"t"],"status.portOfLoading":[0.9,"t"],"status.portOfShipment":[0.9,"t"],"declarant.importerName":[0.9,"t"],"declarant.importerAddress":[0.9,"t"],"declarant.cbName":[0.9,"t"],"declarant.adCode":[0.9,"t"],"dutySummary.sws":[1.0,"c"],"dutySummary.igst":[1.0,"c"],"dutySummary.totalAssessableValue":[1.0,"c"],"dutySummary.totalDuty":[1.0,"c"],"dutySummary.totalAmount":[1.0,"c"],"manifest.mawbNo":[0.9,"t"],"manifest.mawbDate":[0.9,"t"],"manifest.hawbNo":[0.9,"t"],"manifest.hawbDate":[0.9,"t"],"manifest.packages":[0.9,"t"],"manifest.grossWeightKg":[0.9,"t"],"payments.0.challanNo":[0.9,"t"],"payments.0.paidOn":[0.9,"t"],"payments.0.amount":[0.9,"t"],"events.0.event":[0.9,"t"],"events.0.date":[0.9,"t"],"events.0.time":[0.9,"t"],"events.0.rate":[0.9,"t"],"events.1.event":[0.9,"t"],"events.1.date":[0.9,"t"],"events.1.time":[0.9,"t"],"events.1.rate":[0.9,"t"],"containers.0.truck":[0.9,"t"],"containers.0.seal":[0.9,"t"],"containers.0.containerNumber":[0.9,"t"],"invoices.0.no":[1.0,"c"],"invoices.0.date":[0.9,"t"],"invoices.0.amount":[1.0,"c"],"invoices.0.currency":[1.0,"c"],"invoices.0.parties.buyer":[0.9,"t"],"invoices.0.parties.supplier":[0.9,"t"],"invoices.0.valuation.invoiceValue":[1.0,"c"],"invoices.0.valuation.freight":[1.0,"c"],"invoices.0.valuation.insurance":[1.0,"c"],"invoices.0.valuation.payTerms":[0.9,"t"],"invoices.0.valuation.valuationMethod":[0.9,"t"],"invoices.0.valuation.currency":[1.0,"c"],"invoices.0.valuation.relatedParty":[0.9,"t"],"invoices.0.valuation.incoterm":[1.0,"c"],"invoices.0.cost.miscCharge":[1.0,"c"],"invoices.0.cost.assessValue":[1.0,"c"],"invoices.0.items.0.1":[1.0,"c"],"invoices.0.items.0.2":[1.0,"c"],"invoices.0.items.0.3":[1.0,"c"],"invoices.0.items.0.4":[1.0,"c"],"invoices.0.items.0.5":[1.0,"c"],"invoices.0.items.0.6":[1.0,"c"],"invoices.0.items.1.1":[1.0,"c"],"invoices.0.items.1.2":[1.0,"c"],"invoices.0.items.1.3":[1.0,"c"],"invoices.0.items.1.4":[1.0,"c"],"invoices.0.items.1.5":[1.0,"c"],"invoices.0.items.1.6":[1.0,"c"],"invoices.0.items.2.1":[1.0,"c"],"invoices.0.items.2.2":[1.0,"c"],"invoices.0.items.2.3":[1.0,"c"],"invoices.0.items.2.4":[1.0,"c"],"invoices.0.items.2.5":[1.0,"c"],"invoices.0.items.2.6":[1.0,"c"],"invoices.0.items.3.1":[1.0,"c"],"invoices.0.items.3.2":[1.0,"c"],"invoices.0.items.3.3":[1.0,"c"],"invoices.0.items.3.4":[1.0,"c"],"invoices.0.items.3.5":[1.0,"c"],"invoices.0.items.3.6":[1.0,"c"],"invoices.0.items.4.1":[1.0,"c"],"invoices.0.items.4.2":[1.0,"c"],"invoices.0.items.4.3":[1.0,"c"],"invoices.0.items.4.4":[1.0,"c"],"invoices.0.items.4.5":[1.0,"c"],"invoices.0.items.4.6":[1.0,"c"],"invoices.0.items.5.1":[1.0,"c"],"invoices.0.items.5.2":[1.0,"c"],"invoices.0.items.5.3":[1.0,"c"],"invoices.0.items.5.5":[1.0,"c"],"invoices.0.items.5.6":[1.0,"c"],"invoices.0.items.6.1":[1.0,"c"],"invoices.0.items.6.2":[1.0,"c"],"invoices.0.items.6.3":[1.0,"c"],"invoices.0.items.6.5":[1.0,"c"],"invoices.0.items.6.6":[1.0,"c"],"invoices.0.items.7.1":[1.0,"c"],"invoices.0.items.7.2":[1.0,"c"],"invoices.0.items.7.3":[1.0,"c"],"invoices.0.items.7.4":[1.0,"c"],"invoices.0.items.7.5":[1.0,"c"],"invoices.0.items.7.6":[1.0,"c"],"invoices.0.items.8.1":[1.0,"c"],"invoices.0.items.8.2":[1.0,"c"],"invoices.0.items.8.3":[1.0,"c"],"invoices.0.items.8.5":[1.0,"c"],"invoices.0.items.8.6":[1.0,"c"],"invoices.0.items.9.1":[1.0,"c"],"invoices.0.items.9.2":[1.0,"c"],"invoices.0.items.9.3":[1.0,"c"],"invoices.0.items.9.5":[1.0,"c"],"invoices.0.items.9.6":[1.0,"c"],"invoices.0.items.10.1":[1.0,"c"],"invoices.0.items.10.2":[1.0,"c"],"invoices.0.items.10.3":[1.0,"c"],"invoices.0.items.10.4":[1.0,"c"],"invoices.0.items.10.5":[1.0,"c"],"invoices.0.items.10.6":[1.0,"c"],"invoices.0.items.11.1":[1.0,"c"],"invoices.0.items.11.2":[1.0,"c"],"invoices.0.items.11.3":[1.0,"c"],"invoices.0.items.11.4":[1.0,"c"],"invoices.0.items.11.5":[1.0,"c"],"invoices.0.items.11.6":[1.0,"c"],"invoices.0.items.12.1":[1.0,"c"],"invoices.0.items.12.2":[1.0,"c"],"invoices.0.items.12.3":[1.0,"c"],"invoices.0.items.12.4":[1.0,"c"],"invoices.0.items.12.5":[1.0,"c"],"invoices.0.items.12.6":[1.0,"c"],"invoices.0.items.13.1":[1.0,"c"],"invoices.0.items.13.2":[1.0,"c"],"invoices.0.items.13.3":[1.0,"c"],"invoices.0.items.13.4":[1.0,"c"],"invoices.0.items.13.5":[1.0,"c"],"invoices.0.items.13.6":[1.0,"c"],"invoices.0.items.14.1":[1.0,"c"],"invoices.0.items.14.2":[1.0,"c"],"invoices.0.items.14.3":[1.0,"c"],"invoices.0.items.14.5":[1.0,"c"],"invoices.0.items.14.6":[1.0,"c"],"invoices.0.items.15.1":[1.0,"c"],"invoices.0.items.15.2":[1.0,"c"],"invoices.0.items.15.3":[1.0,"c"],"invoices.0.items.15.5":[1.0,"c"],"invoices.0.items.15.6":[1.0,"c"],"invoices.0.items.16.1":[1.0,"c"],"invoices.0.items.16.2":[1.0,"c"],"invoices.0.items.16.3":[1.0,"c"],"invoices.0.items.16.4":[1.0,"c"],"invoices.0.items.16.5":[1.0,"c"],"invoices.0.items.16.6":[1.0,"c"],"invoices.0.items.17.1":[1.0,"c"],"invoices.0.items.17.2":[1.0,"c"],"invoices.0.items.17.3":[1.0,"c"],"invoices.0.items.17.5":[1.0,"c"],"invoices.0.items.17.6":[1.0,"c"],"invoices.0.items.18.1":[1.0,"c"],"invoices.0.items.18.2":[1.0,"c"],"invoices.0.items.18.3":[1.0,"c"],"invoices.0.items.18.5":[1.0,"c"],"invoices.0.items.18.6":[1.0,"c"],"invoices.0.items.19.1":[1.0,"c"],"invoices.0.items.19.2":[1.0,"c"],"invoices.0.items.19.3":[1.0,"c"],"invoices.0.items.19.5":[1.0,"c"],"invoices.0.items.19.6":[1.0,"c"],"invoices.0.items.20.1":[1.0,"c"],"invoices.0.items.20.2":[1.0,"c"],"invoices.0.items.20.3":[1.0,"c"],"invoices.0.items.20.5":[1.0,"c"],"invoices.0.items.20.6":[1.0,"c"],"invoices.0.items.21.1":[1.0,"c"],"invoices.0.items.21.2":[1.0,"c"],"invoices.0.items.21.3":[1.0,"c"],"invoices.0.items.21.4":[1.0,"c"],"invoices.0.items.21.5":[1.0,"c"],"invoices.0.items.21.6":[1.0,"c"],"invoices.0.items.22.1":[1.0,"c"],"invoices.0.items.22.2":[1.0,"c"],"invoices.0.items.22.3":[1.0,"c"],"invoices.0.items.22.4":[1.0,"c"],"invoices.0.items.22.5":[1.0,"c"],"invoices.0.items.22.6":[1.0,"c"],"invoices.0.items.23.1":[1.0,"c"],"invoices.0.items.23.2":[1.0,"c"],"invoices.0.items.23.3":[1.0,"c"],"invoices.0.items.23.4":[1.0,"c"],"invoices.0.items.23.5":[1.0,"c"],"invoices.0.items.23.6":[1.0,"c"],"invoices.0.items.24.1":[1.0,"c"],"invoices.0.items.24.2":[1.0,"c"],"invoices.0.items.24.3":[1.0,"c"],"invoices.0.items.24.5":[1.0,"c"],"invoices.0.items.24.6":[1.0,"c"],"invoices.0.items.25.1":[1.0,"c"],"invoices.0.items.25.2":[1.0,"c"],"invoices.0.items.25.3":[1.0,"c"],"invoices.0.items.25.5":[1.0,"c"],"invoices.0.items.25.6":[1.0,"c"],"invoices.0.items.26.1":[1.0,"c"],"invoices.0.items.26.2":[1.0,"c"],"invoices.0.items.26.3":[1.0,"c"],"invoices.0.items.26.4":[1.0,"c"],"invoices.0.items.26.5":[1.0,"c"],"invoices.0.items.26.6":[1.0,"c"],"invoices.0.items.27.1":[1.0,"c"],"invoices.0.items.27.2":[1.0,"c"],"invoices.0.items.27.3":[1.0,"c"],"invoices.0.items.27.4":[1.0,"c"],"invoices.0.items.27.5":[1.0,"c"],"invoices.0.items.27.6":[1.0,"c"],"invoices.0.duties.1.cth":[1.0,"c"],"invoices.0.duties.1.assessValue":[1.0,"c"],"invoices.0.duties.1.totalDuty":[1.0,"c"],"invoices.0.duties.1.bcdRate":[1.0,"c"],"invoices.0.duties.1.swsAmount":[1.0,"c"],"invoices.0.duties.1.igstRate":[1.0,"c"],"invoices.0.duties.1.igstAmount":[1.0,"c"],"invoices.0.duties.2.cth":[1.0,"c"],"invoices.0.duties.2.assessValue":[1.0,"c"],"invoices.0.duties.2.totalDuty":[1.0,"c"],"invoices.0.duties.2.bcdRate":[1.0,"c"],"invoices.0.duties.2.swsAmount":[1.0,"c"],"invoices.0.duties.2.igstRate":[1.0,"c"],"invoices.0.duties.2.igstAmount":[1.0,"c"],"invoices.0.duties.3.cth":[1.0,"c"],"invoices.0.duties.3.assessValue":[1.0,"c"],"invoices.0.duties.3.totalDuty":[1.0,"c"],"invoices.0.duties.3.bcdRate":[1.0,"c"],"invoices.0.duties.3.swsAmount":[1.0,"c"],"invoices.0.duties.3.igstRate":[1.0,"c"],"invoices.0.duties.3.igstAmount":[1.0,"c"],"invoices.0.duties.4.cth":[1.0,"c"],"invoices.0.duties.4.assessValue":[1.0,"c"],"invoices.0.duties.4.totalDuty":[1.0,"c"],"invoices.0.duties.4.bcdRate":[1.0,"c"],"invoices.0.duties.4.swsAmount":[1.0,"c"],"invoices.0.duties.4.igstRate":[1.0,"c"],"invoices.0.duties.4.igstAmount":[1.0,"c"],"invoices.0.duties.5.cth":[1.0,"c"],"invoices.0.duties.5.assessValue":[1.0,"c"],"invoices.0.duties.5.totalDuty":[1.0,"c"],"invoices.0.duties.5.bcdRate":[1.0,"c"],"invoices.0.duties.5.swsAmount":[1.0,"c"],"invoices.0.duties.5.igstRate":[1.0,"c"],"invoices.0.duties.5.igstAmount":[1.0,"c"],"invoices.0.duties.6.cth":[1.0,"c"],"invoices.0.duties.6.assessValue":[1.0,"c"],"invoices.0.duties.6.totalDuty":[1.0,"c"],"invoices.0.duties.6.bcdRate":[1.0,"c"],"invoices.0.duties.6.swsAmount":[1.0,"c"],"invoices.0.duties.6.igstRate":[1.0,"c"],"invoices.0.duties.6.igstAmount":[1.0,"c"],"invoices.0.duties.7.cth":[1.0,"c"],"invoices.0.duties.7.assessValue":[1.0,"c"],"invoices.0.duties.7.totalDuty":[1.0,"c"],"invoices.0.duties.7.bcdRate":[1.0,"c"],"invoices.0.duties.7.swsAmount":[1.0,"c"],"invoices.0.duties.7.igstRate":[1.0,"c"],"invoices.0.duties.7.igstAmount":[1.0,"c"],"invoices.0.duties.8.cth":[1.0,"c"],"invoices.0.duties.8.assessValue":[1.0,"c"],"invoices.0.duties.8.totalDuty":[1.0,"c"],"invoices.0.duties.8.bcdRate":[1.0,"c"],"invoices.0.duties.8.swsAmount":[1.0,"c"],"invoices.0.duties.8.igstRate":[1.0,"c"],"invoices.0.duties.8.igstAmount":[1.0,"c"],"invoices.0.duties.9.cth":[1.0,"c"],"invoices.0.duties.9.assessValue":[1.0,"c"],"invoices.0.duties.9.totalDuty":[1.0,"c"],"invoices.0.duties.9.bcdRate":[1.0,"c"],"invoices.0.duties.9.swsAmount":[1.0,"c"],"invoices.0.duties.9.igstRate":[1.0,"c"],"invoices.0.duties.9.igstAmount":[1.0,"c"],"invoices.0.duties.10.cth":[1.0,"c"],"invoices.0.duties.10.assessValue":[1.0,"c"],"invoices.0.duties.10.totalDuty":[1.0,"c"],"invoices.0.duties.10.bcdRate":[1.0,"c"],"invoices.0.duties.10.swsAmount":[1.0,"c"],"invoices.0.duties.10.igstRate":[1.0,"c"],"invoices.0.duties.10.igstAmount":[1.0,"c"],"invoices.0.duties.11.cth":[1.0,"c"],"invoices.0.duties.11.assessValue":[1.0,"c"],"invoices.0.duties.11.totalDuty":[1.0,"c"],"invoices.0.duties.11.bcdRate":[1.0,"c"],"invoices.0.duties.11.swsAmount":[1.0,"c"],"invoices.0.duties.11.igstRate":[1.0,"c"],"invoices.0.duties.11.igstAmount":[1.0,"c"],"invoices.0.duties.12.cth":[1.0,"c"],"invoices.0.duties.12.assessValue":[1.0,"c"],"invoices.0.duties.12.totalDuty":[1.0,"c"],"invoices.0.duties.12.bcdRate":[1.0,"c"],"invoices.0.duties.12.swsAmount":[1.0,"c"],"invoices.0.duties.12.igstRate":[1.0,"c"],"invoices.0.duties.12.igstAmount":[1.0,"c"],"invoices.0.duties.13.cth":[1.0,"c"],"invoices.0.duties.13.assessValue":[1.0,"c"],"invoices.0.duties.13.totalDuty":[1.0,"c"],"invoices.0.duties.13.bcdRate":[1.0,"c"],"invoices.0.duties.13.swsAmount":[1.0,"c"],"invoices.0.duties.13.igstRate":[1.0,"c"],"invoices.0.duties.13.igstAmount":[1.0,"c"],"invoices.0.duties.14.cth":[1.0,"c"],"invoices.0.duties.14.assessValue":[1.0,"c"],"invoices.0.duties.14.totalDuty":[1.0,"c"],"invoices.0.duties.14.bcdRate":[1.0,"c"],"invoices.0.duties.14.swsAmount":[1.0,"c"],"invoices.0.duties.14.igstRate":[1.0,"c"],"invoices.0.duties.14.igstAmount":[1.0,"c"],"invoices.0.duties.15.cth":[1.0,"c"],"invoices.0.duties.15.assessValue":[1.0,"c"],"invoices.0.duties.15.totalDuty":[1.0,"c"],"invoices.0.duties.15.bcdRate":[1.0,"c"],"invoices.0.duties.15.swsAmount":[1.0,"c"],"invoices.0.duties.15.igstRate":[1.0,"c"],"invoices.0.duties.15.igstAmount":[1.0,"c"],"invoices.0.duties.16.cth":[1.0,"c"],"invoices.0.duties.16.assessValue":[1.0,"c"],"invoices.0.duties.16.totalDuty":[1.0,"c"],"invoices.0.duties.16.bcdRate":[1.0,"c"],"invoices.0.duties.16.swsAmount":[1.0,"c"],"invoices.0.duties.16.igstRate":[1.0,"c"],"invoices.0.duties.16.igstAmount":[1.0,"c"],"invoices.0.duties.17.cth":[1.0,"c"],"invoices.0.duties.17.assessValue":[1.0,"c"],"invoices.0.duties.17.totalDuty":[1.0,"c"],"invoices.0.duties.17.bcdRate":[1.0,"c"],"invoices.0.duties.17.swsAmount":[1.0,"c"],"invoices.0.duties.17.igstRate":[1.0,"c"],"invoices.0.duties.17.igstAmount":[1.0,"c"],"invoices.0.duties.18.cth":[1.0,"c"],"invoices.0.duties.18.assessValue":[1.0,"c"],"invoices.0.duties.18.totalDuty":[1.0,"c"],"invoices.0.duties.18.bcdRate":[1.0,"c"],"invoices.0.duties.18.swsAmount":[1.0,"c"],"invoices.0.duties.18.igstRate":[1.0,"c"],"invoices.0.duties.18.igstAmount":[1.0,"c"],"invoices.0.duties.19.cth":[1.0,"c"],"invoices.0.duties.19.assessValue":[1.0,"c"],"invoices.0.duties.19.totalDuty":[1.0,"c"],"invoices.0.duties.19.bcdRate":[1.0,"c"],"invoices.0.duties.19.swsAmount":[1.0,"c"],"invoices.0.duties.19.igstRate":[1.0,"c"],"invoices.0.duties.19.igstAmount":[1.0,"c"],"invoices.0.duties.20.cth":[1.0,"c"],"invoices.0.duties.20.assessValue":[1.0,"c"],"invoices.0.duties.20.totalDuty":[1.0,"c"],"invoices.0.duties.20.bcdRate":[1.0,"c"],"invoices.0.duties.20.swsAmount":[1.0,"c"],"invoices.0.duties.20.igstRate":[1.0,"c"],"invoices.0.duties.20.igstAmount":[1.0,"c"],"invoices.0.duties.21.cth":[1.0,"c"],"invoices.0.duties.21.assessValue":[1.0,"c"],"invoices.0.duties.21.totalDuty":[1.0,"c"],"invoices.0.duties.21.bcdRate":[1.0,"c"],"invoices.0.duties.21.swsAmount":[1.0,"c"],"invoices.0.duties.21.igstRate":[1.0,"c"],"invoices.0.duties.21.igstAmount":[1.0,"c"],"invoices.0.duties.22.cth":[1.0,"c"],"invoices.0.duties.22.assessValue":[1.0,"c"],"invoices.0.duties.22.totalDuty":[1.0,"c"],"invoices.0.duties.22.bcdRate":[1.0,"c"],"invoices.0.duties.22.swsAmount":[1.0,"c"],"invoices.0.duties.22.igstRate":[1.0,"c"],"invoices.0.duties.22.igstAmount":[1.0,"c"],"invoices.0.duties.23.cth":[1.0,"c"],"invoices.0.duties.23.assessValue":[1.0,"c"],"invoices.0.duties.23.totalDuty":[1.0,"c"],"invoices.0.duties.23.bcdRate":[1.0,"c"],"invoices.0.duties.23.swsAmount":[1.0,"c"],"invoices.0.duties.23.igstRate":[1.0,"c"],"invoices.0.duties.23.igstAmount":[1.0,"c"],"invoices.0.duties.24.cth":[1.0,"c"],"invoices.0.duties.24.assessValue":[1.0,"c"],"invoices.0.duties.24.totalDuty":[1.0,"c"],"invoices.0.duties.24.bcdRate":[1.0,"c"],"invoices.0.duties.24.swsAmount":[1.0,"c"],"invoices.0.duties.24.igstRate":[1.0,"c"],"invoices.0.duties.24.igstAmount":[1.0,"c"],"invoices.0.duties.25.cth":[1.0,"c"],"invoices.0.duties.25.assessValue":[1.0,"c"],"invoices.0.duties.25.totalDuty":[1.0,"c"],"invoices.0.duties.25.bcdRate":[1.0,"c"],"invoices.0.duties.25.swsAmount":[1.0,"c"],"invoices.0.duties.25.igstRate":[1.0,"c"],"invoices.0.duties.25.igstAmount":[1.0,"c"],"invoices.0.duties.26.cth":[1.0,"c"],"invoices.0.duties.26.assessValue":[1.0,"c"],"invoices.0.duties.26.totalDuty":[1.0,"c"],"invoices.0.duties.26.bcdRate":[1.0,"c"],"invoices.0.duties.26.swsAmount":[1.0,"c"],"invoices.0.duties.26.igstRate":[1.0,"c"],"invoices.0.duties.26.igstAmount":[1.0,"c"],"invoices.0.duties.27.cth":[1.0,"c"],"invoices.0.duties.27.assessValue":[1.0,"c"],"invoices.0.duties.27.totalDuty":[1.0,"c"],"invoices.0.duties.27.bcdRate":[1.0,"c"],"invoices.0.duties.27.swsAmount":[1.0,"c"],"invoices.0.duties.27.igstRate":[1.0,"c"],"invoices.0.duties.27.igstAmount":[1.0,"c"],"invoices.0.duties.28.cth":[1.0,"c"],"invoices.0.duties.28.assessValue":[1.0,"c"],"invoices.0.duties.28.totalDuty":[1.0,"c"],"invoices.0.duties.28.bcdRate":[1.0,"c"],"invoices.0.duties.28.swsAmount":[1.0,"c"],"invoices.0.duties.28.igstRate":[1.0,"c"],"invoices.0.duties.28.igstAmount":[1.0,"c"],"invoices.1.no":[1.0,"c"],"invoices.1.date":[0.9,"t"],"invoices.1.amount":[1.0,"c"],"invoices.1.currency":[1.0,"c"],"invoices.1.parties.buyer":[0.9,"t"],"invoices.1.parties.supplier":[0.9,"t"],"invoices.1.valuation.invoiceValue":[1.0,"c"],"invoices.1.valuation.freight":[1.0,"c"],"invoices.1.valuation.insurance":[1.0,"c"],"invoices.1.valuation.payTerms":[0.9,"t"],"invoices.1.valuation.valuationMethod":[0.9,"t"],"invoices.1.valuation.currency":[1.0,"c"],"invoices.1.valuation.relatedParty":[0.9,"t"],"invoices.1.valuation.incoterm":[1.0,"c"],"invoices.1.cost.miscCharge":[1.0,"c"],"invoices.1.cost.assessValue":[1.0,"c"],"invoices.1.items.0.1":[1.0,"c"],"invoices.1.items.0.2":[1.0,"c"],"invoices.1.items.0.3":[1.0,"c"],"invoices.1.items.0.5":[1.0,"c"],"invoices.1.items.0.6":[1.0,"c"],"invoices.1.items.1.1":[1.0,"c"],"invoices.1.items.1.2":[1.0,"c"],"invoices.1.items.1.3":[1.0,"c"],"invoices.1.items.1.5":[1.0,"c"],"invoices.1.items.1.6":[1.0,"c"],"invoices.1.items.2.1":[1.0,"c"],"invoices.1.items.2.2":[1.0,"c"],"invoices.1.items.2.3":[1.0,"c"],"invoices.1.items.2.5":[1.0,"c"],"invoices.1.items.2.6":[1.0,"c"],"invoices.1.items.3.1":[1.0,"c"],"invoices.1.items.3.2":[1.0,"c"],"invoices.1.items.3.3":[1.0,"c"],"invoices.1.items.3.5":[1.0,"c"],"invoices.1.items.3.6":[1.0,"c"],"invoices.1.items.4.1":[1.0,"c"],"invoices.1.items.4.2":[1.0,"c"],"invoices.1.items.4.3":[1.0,"c"],"invoices.1.items.4.5":[1.0,"c"],"invoices.1.items.4.6":[1.0,"c"],"invoices.1.items.5.1":[1.0,"c"],"invoices.1.items.5.2":[1.0,"c"],"invoices.1.items.5.3":[1.0,"c"],"invoices.1.items.5.4":[1.0,"c"],"invoices.1.items.5.5":[1.0,"c"],"invoices.1.items.5.6":[1.0,"c"],"invoices.1.items.6.1":[1.0,"c"],"invoices.1.items.6.2":[1.0,"c"],"invoices.1.items.6.3":[1.0,"c"],"invoices.1.items.6.5":[1.0,"c"],"invoices.1.items.6.6":[1.0,"c"],"invoices.1.items.7.1":[1.0,"c"],"invoices.1.items.7.2":[1.0,"c"],"invoices.1.items.7.3":[1.0,"c"],"invoices.1.items.7.5":[1.0,"c"],"invoices.1.items.7.6":[1.0,"c"],"invoices.1.items.8.1":[1.0,"c"],"invoices.1.items.8.2":[1.0,"c"],"invoices.1.items.8.3":[1.0,"c"],"invoices.1.items.8.5":[1.0,"c"],"invoices.1.items.8.6":[1.0,"c"],"invoices.1.items.9.1":[1.0,"c"],"invoices.1.items.9.2":[1.0,"c"],"invoices.1.items.9.3":[1.0,"c"],"invoices.1.items.9.4":[1.0,"c"],"invoices.1.items.9.5":[1.0,"c"],"invoices.1.items.9.6":[1.0,"c"],"invoices.1.items.10.1":[1.0,"c"],"invoices.1.items.10.2":[1.0,"c"],"invoices.1.items.10.3":[1.0,"c"],"invoices.1.items.10.5":[1.0,"c"],"invoices.1.items.10.6":[1.0,"c"],"invoices.1.items.11.1":[1.0,"c"],"invoices.1.items.11.2":[1.0,"c"],"invoices.1.items.11.3":[1.0,"c"],"invoices.1.items.11.5":[1.0,"c"],"invoices.1.items.11.6":[1.0,"c"],"invoices.1.items.12.1":[1.0,"c"],"invoices.1.items.12.2":[1.0,"c"],"invoices.1.items.12.3":[1.0,"c"],"invoices.1.items.12.4":[1.0,"c"],"invoices.1.items.12.5":[1.0,"c"],"invoices.1.items.12.6":[1.0,"c"],"invoices.1.items.13.1":[1.0,"c"],"invoices.1.items.13.2":[1.0,"c"],"invoices.1.items.13.3":[1.0,"c"],"invoices.1.items.13.5":[1.0,"c"],"invoices.1.items.13.6":[1.0,"c"],"invoices.1.items.14.1":[1.0,"c"],"invoices.1.items.14.2":[1.0,"c"],"invoices.1.items.14.3":[1.0,"c"],"invoices.1.items.14.5":[1.0,"c"],"invoices.1.items.14.6":[1.0,"c"],"invoices.1.items.15.1":[1.0,"c"],"invoices.1.items.15.2":[1.0,"c"],"invoices.1.items.15.3":[1.0,"c"],"invoices.1.items.15.5":[1.0,"c"],"invoices.1.items.15.6":[1.0,"c"],"invoices.1.items.16.1":[1.0,"c"],"invoices.1.items.16.2":[1.0,"c"],"invoices.1.items.16.3":[1.0,"c"],"invoices.1.items.16.5":[1.0,"c"],"invoices.1.items.16.6":[1.0,"c"],"invoices.1.items.17.1":[1.0,"c"],"invoices.1.items.17.2":[1.0,"c"],"invoices.1.items.17.3":[1.0,"c"],"invoices.1.items.17.5":[1.0,"c"],"invoices.1.items.17.6":[1.0,"c"],"invoices.1.items.18.1":[1.0,"c"],"invoices.1.items.18.2":[1.0,"c"],"invoices.1.items.18.3":[1.0,"c"],"invoices.1.items.18.5":[1.0,"c"],"invoices.1.items.18.6":[1.0,"c"],"invoices.1.items.19.1":[1.0,"c"],"invoices.1.items.19.2":[1.0,"c"],"invoices.1.items.19.3":[1.0,"c"],"invoices.1.items.19.5":[1.0,"c"],"invoices.1.items.19.6":[1.0,"c"],"invoices.1.items.20.1":[1.0,"c"],"invoices.1.items.20.2":[1.0,"c"],"invoices.1.items.20.3":[1.0,"c"],"invoices.1.items.20.5":[1.0,"c"],"invoices.1.items.20.6":[1.0,"c"],"invoices.1.items.21.1":[1.0,"c"],"invoices.1.items.21.2":[1.0,"c"],"invoices.1.items.21.3":[1.0,"c"],"invoices.1.items.21.5":[1.0,"c"],"invoices.1.items.21.6":[1.0,"c"],"invoices.1.items.22.1":[1.0,"c"],"invoices.1.items.22.2":[1.0,"c"],"invoices.1.items.22.3":[1.0,"c"],"invoices.1.items.22.5":[1.0,"c"],"invoices.1.items.22.6":[1.0,"c"],"invoices.1.items.23.1":[1.0,"c"],"invoices.1.items.23.2":[1.0,"c"],"invoices.1.items.23.3":[1.0,"c"],"invoices.1.items.23.5":[1.0,"c"],"invoices.1.items.23.6":[1.0,"c"],"invoices.1.duties.1.cth":[1.0,"c"],"invoices.1.duties.1.assessValue":[1.0,"c"],"invoices.1.duties.1.totalDuty":[1.0,"c"],"invoices.1.duties.1.bcdRate":[1.0,"c"],"invoices.1.duties.1.swsAmount":[1.0,"c"],"invoices.1.duties.1.igstRate":[1.0,"c"],"invoices.1.duties.1.igstAmount":[1.0,"c"],"invoices.1.duties.2.cth":[1.0,"c"],"invoices.1.duties.2.assessValue":[1.0,"c"],"invoices.1.duties.2.totalDuty":[1.0,"c"],"invoices.1.duties.2.bcdRate":[1.0,"c"],"invoices.1.duties.2.swsAmount":[1.0,"c"],"invoices.1.duties.2.igstRate":[1.0,"c"],"invoices.1.duties.2.igstAmount":[1.0,"c"],"invoices.1.duties.3.cth":[1.0,"c"],"invoices.1.duties.3.assessValue":[1.0,"c"],"invoices.1.duties.3.totalDuty":[1.0,"c"],"invoices.1.duties.3.bcdRate":[1.0,"c"],"invoices.1.duties.3.swsAmount":[1.0,"c"],"invoices.1.duties.3.igstRate":[1.0,"c"],"invoices.1.duties.3.igstAmount":[1.0,"c"],"invoices.1.duties.4.cth":[1.0,"c"],"invoices.1.duties.4.assessValue":[1.0,"c"],"invoices.1.duties.4.totalDuty":[1.0,"c"],"invoices.1.duties.4.bcdRate":[1.0,"c"],"invoices.1.duties.4.swsAmount":[1.0,"c"],"invoices.1.duties.4.igstRate":[1.0,"c"],"invoices.1.duties.4.igstAmount":[1.0,"c"],"invoices.1.duties.5.cth":[1.0,"c"],"invoices.1.duties.5.assessValue":[1.0,"c"],"invoices.1.duties.5.totalDuty":[1.0,"c"],"invoices.1.duties.5.bcdRate":[1.0,"c"],"invoices.1.duties.5.swsAmount":[1.0,"c"],"invoices.1.duties.5.igstRate":[1.0,"c"],"invoices.1.duties.5.igstAmount":[1.0,"c"],"invoices.1.duties.6.cth":[1.0,"c"],"invoices.1.duties.6.assessValue":[1.0,"c"],"invoices.1.duties.6.totalDuty":[1.0,"c"],"invoices.1.duties.6.bcdRate":[1.0,"c"],"invoices.1.duties.6.swsAmount":[1.0,"c"],"invoices.1.duties.6.igstRate":[1.0,"c"],"invoices.1.duties.6.igstAmount":[1.0,"c"],"invoices.1.duties.7.cth":[1.0,"c"],"invoices.1.duties.7.assessValue":[1.0,"c"],"invoices.1.duties.7.totalDuty":[1.0,"c"],"invoices.1.duties.7.bcdRate":[1.0,"c"],"invoices.1.duties.7.swsAmount":[1.0,"c"],"invoices.1.duties.7.igstRate":[1.0,"c"],"invoices.1.duties.7.igstAmount":[1.0,"c"],"invoices.1.duties.8.cth":[1.0,"c"],"invoices.1.duties.8.assessValue":[1.0,"c"],"invoices.1.duties.8.totalDuty":[1.0,"c"],"invoices.1.duties.8.bcdRate":[1.0,"c"],"invoices.1.duties.8.swsAmount":[1.0,"c"],"invoices.1.duties.8.igstRate":[1.0,"c"],"invoices.1.duties.8.igstAmount":[1.0,"c"],"invoices.1.duties.9.cth":[1.0,"c"],"invoices.1.duties.9.assessValue":[1.0,"c"],"invoices.1.duties.9.totalDuty":[1.0,"c"],"invoices.1.duties.9.bcdRate":[1.0,"c"],"invoices.1.duties.9.swsAmount":[1.0,"c"],"invoices.1.duties.9.igstRate":[1.0,"c"],"invoices.1.duties.9.igstAmount":[1.0,"c"],"invoices.1.duties.10.cth":[1.0,"c"],"invoices.1.duties.10.assessValue":[1.0,"c"],"invoices.1.duties.10.totalDuty":[1.0,"c"],"invoices.1.duties.10.bcdRate":[1.0,"c"],"invoices.1.duties.10.swsAmount":[1.0,"c"],"invoices.1.duties.10.igstRate":[1.0,"c"],"invoices.1.duties.10.igstAmount":[1.0,"c"],"invoices.1.duties.11.cth":[1.0,"c"],"invoices.1.duties.11.assessValue":[1.0,"c"],"invoices.1.duties.11.totalDuty":[1.0,"c"],"invoices.1.duties.11.bcdRate":[1.0,"c"],"invoices.1.duties.11.swsAmount":[1.0,"c"],"invoices.1.duties.11.igstRate":[1.0,"c"],"invoices.1.duties.11.igstAmount":[1.0,"c"],"invoices.1.duties.12.cth":[1.0,"c"],"invoices.1.duties.12.assessValue":[1.0,"c"],"invoices.1.duties.12.totalDuty":[1.0,"c"],"invoices.1.duties.12.bcdRate":[1.0,"c"],"invoices.1.duties.12.swsAmount":[1.0,"c"],"invoices.1.duties.12.igstRate":[1.0,"c"],"invoices.1.duties.12.igstAmount":[1.0,"c"],"invoices.1.duties.13.cth":[1.0,"c"],"invoices.1.duties.13.assessValue":[1.0,"c"],"invoices.1.duties.13.totalDuty":[1.0,"c"],"invoices.1.duties.13.bcdRate":[1.0,"c"],"invoices.1.duties.13.swsAmount":[1.0,"c"],"invoices.1.duties.13.igstRate":[1.0,"c"],"invoices.1.duties.13.igstAmount":[1.0,"c"],"invoices.1.duties.14.cth":[1.0,"c"],"invoices.1.duties.14.assessValue":[1.0,"c"],"invoices.1.duties.14.totalDuty":[1.0,"c"],"invoices.1.duties.14.bcdRate":[1.0,"c"],"invoices.1.duties.14.swsAmount":[1.0,"c"],"invoices.1.duties.14.igstRate":[1.0,"c"],"invoices.1.duties.14.igstAmount":[1.0,"c"],"invoices.1.duties.15.cth":[1.0,"c"],"invoices.1.duties.15.assessValue":[1.0,"c"],"invoices.1.duties.15.totalDuty":[1.0,"c"],"invoices.1.duties.15.bcdRate":[1.0,"c"],"invoices.1.duties.15.swsAmount":[1.0,"c"],"invoices.1.duties.15.igstRate":[1.0,"c"],"invoices.1.duties.15.igstAmount":[1.0,"c"],"invoices.1.duties.16.cth":[1.0,"c"],"invoices.1.duties.16.assessValue":[1.0,"c"],"invoices.1.duties.16.totalDuty":[1.0,"c"],"invoices.1.duties.16.bcdRate":[1.0,"c"],"invoices.1.duties.16.swsAmount":[1.0,"c"],"invoices.1.duties.16.igstRate":[1.0,"c"],"invoices.1.duties.16.igstAmount":[1.0,"c"],"invoices.1.duties.17.cth":[1.0,"c"],"invoices.1.duties.17.assessValue":[1.0,"c"],"invoices.1.duties.17.totalDuty":[1.0,"c"],"invoices.1.duties.17.bcdRate":[1.0,"c"],"invoices.1.duties.17.swsAmount":[1.0,"c"],"invoices.1.duties.17.igstRate":[1.0,"c"],"invoices.1.duties.17.igstAmount":[1.0,"c"],"invoices.1.duties.18.cth":[1.0,"c"],"invoices.1.duties.18.assessValue":[1.0,"c"],"invoices.1.duties.18.totalDuty":[1.0,"c"],"invoices.1.duties.18.bcdRate":[1.0,"c"],"invoices.1.duties.18.swsAmount":[1.0,"c"],"invoices.1.duties.18.igstRate":[1.0,"c"],"invoices.1.duties.18.igstAmount":[1.0,"c"],"invoices.1.duties.19.cth":[1.0,"c"],"invoices.1.duties.19.assessValue":[1.0,"c"],"invoices.1.duties.19.totalDuty":[1.0,"c"],"invoices.1.duties.19.bcdRate":[1.0,"c"],"invoices.1.duties.19.swsAmount":[1.0,"c"],"invoices.1.duties.19.igstRate":[1.0,"c"],"invoices.1.duties.19.igstAmount":[1.0,"c"],"invoices.1.duties.20.cth":[1.0,"c"],"invoices.1.duties.20.assessValue":[1.0,"c"],"invoices.1.duties.20.totalDuty":[1.0,"c"],"invoices.1.duties.20.bcdRate":[1.0,"c"],"invoices.1.duties.20.swsAmount":[1.0,"c"],"invoices.1.duties.20.igstRate":[1.0,"c"],"invoices.1.duties.20.igstAmount":[1.0,"c"],"invoices.1.duties.21.cth":[1.0,"c"],"invoices.1.duties.21.assessValue":[1.0,"c"],"invoices.1.duties.21.totalDuty":[1.0,"c"],"invoices.1.duties.21.bcdRate":[1.0,"c"],"invoices.1.duties.21.swsAmount":[1.0,"c"],"invoices.1.duties.21.igstRate":[1.0,"c"],"invoices.1.duties.21.igstAmount":[1.0,"c"],"invoices.1.duties.22.cth":[1.0,"c"],"invoices.1.duties.22.assessValue":[1.0,"c"],"invoices.1.duties.22.totalDuty":[1.0,"c"],"invoices.1.duties.22.bcdRate":[1.0,"c"],"invoices.1.duties.22.swsAmount":[1.0,"c"],"invoices.1.duties.22.igstRate":[1.0,"c"],"invoices.1.duties.22.igstAmount":[1.0,"c"],"invoices.1.duties.23.cth":[1.0,"c"],"invoices.1.duties.23.assessValue":[1.0,"c"],"invoices.1.duties.23.totalDuty":[1.0,"c"],"invoices.1.duties.23.bcdRate":[1.0,"c"],"invoices.1.duties.23.swsAmount":[1.0,"c"],"invoices.1.duties.23.igstRate":[1.0,"c"],"invoices.1.duties.23.igstAmount":[1.0,"c"],"invoices.1.duties.24.cth":[1.0,"c"],"invoices.1.duties.24.assessValue":[1.0,"c"],"invoices.1.duties.24.totalDuty":[1.0,"c"],"invoices.1.duties.24.bcdRate":[1.0,"c"],"invoices.1.duties.24.swsAmount":[1.0,"c"],"invoices.1.duties.24.igstRate":[1.0,"c"],"invoices.1.duties.24.igstAmount":[1.0,"c"],"invoices.2.no":[1.0,"c"],"invoices.2.date":[0.9,"t"],"invoices.2.amount":[1.0,"c"],"invoices.2.currency":[1.0,"c"],"invoices.2.parties.buyer":[0.9,"t"],"invoices.2.parties.supplier":[0.9,"t"],"invoices.2.valuation.invoiceValue":[1.0,"c"],"invoices.2.valuation.freight":[1.0,"c"],"invoices.2.valuation.insurance":[1.0,"c"],"invoices.2.valuation.payTerms":[0.9,"t"],"invoices.2.valuation.valuationMethod":[0.9,"t"],"invoices.2.valuation.currency":[1.0,"c"],"invoices.2.valuation.relatedParty":[0.9,"t"],"invoices.2.valuation.incoterm":[1.0,"c"],"invoices.2.cost.miscCharge":[1.0,"c"],"invoices.2.cost.assessValue":[1.0,"c"],"invoices.2.items.0.1":[1.0,"c"],"invoices.2.items.0.2":[1.0,"c"],"invoices.2.items.0.3":[1.0,"c"],"invoices.2.items.0.5":[1.0,"c"],"invoices.2.items.0.6":[1.0,"c"],"invoices.2.items.1.1":[1.0,"c"],"invoices.2.items.1.2":[1.0,"c"],"invoices.2.items.1.3":[1.0,"c"],"invoices.2.items.1.5":[1.0,"c"],"invoices.2.items.1.6":[1.0,"c"],"invoices.2.items.2.1":[1.0,"c"],"invoices.2.items.2.2":[1.0,"c"],"invoices.2.items.2.3":[1.0,"c"],"invoices.2.items.2.5":[1.0,"c"],"invoices.2.items.2.6":[1.0,"c"],"invoices.2.items.3.1":[1.0,"c"],"invoices.2.items.3.2":[1.0,"c"],"invoices.2.items.3.3":[1.0,"c"],"invoices.2.items.3.5":[1.0,"c"],"invoices.2.items.3.6":[1.0,"c"],"invoices.2.items.4.1":[1.0,"c"],"invoices.2.items.4.2":[1.0,"c"],"invoices.2.items.4.3":[1.0,"c"],"invoices.2.items.4.5":[1.0,"c"],"invoices.2.items.4.6":[1.0,"c"],"invoices.2.items.5.1":[1.0,"c"],"invoices.2.items.5.2":[1.0,"c"],"invoices.2.items.5.3":[1.0,"c"],"invoices.2.items.5.5":[1.0,"c"],"invoices.2.items.5.6":[1.0,"c"],"invoices.2.items.6.1":[1.0,"c"],"invoices.2.items.6.2":[1.0,"c"],"invoices.2.items.6.3":[1.0,"c"],"invoices.2.items.6.5":[1.0,"c"],"invoices.2.items.6.6":[1.0,"c"],"invoices.2.items.7.1":[1.0,"c"],"invoices.2.items.7.2":[1.0,"c"],"invoices.2.items.7.3":[1.0,"c"],"invoices.2.items.7.4":[1.0,"c"],"invoices.2.items.7.5":[1.0,"c"],"invoices.2.items.7.6":[1.0,"c"],"invoices.2.items.8.1":[1.0,"c"],"invoices.2.items.8.2":[1.0,"c"],"invoices.2.items.8.3":[1.0,"c"],"invoices.2.items.8.5":[1.0,"c"],"invoices.2.items.8.6":[1.0,"c"],"invoices.2.items.9.1":[1.0,"c"],"invoices.2.items.9.2":[1.0,"c"],"invoices.2.items.9.3":[1.0,"c"],"invoices.2.items.9.5":[1.0,"c"],"invoices.2.items.9.6":[1.0,"c"],"invoices.2.items.10.1":[1.0,"c"],"invoices.2.items.10.2":[1.0,"c"],"invoices.2.items.10.3":[1.0,"c"],"invoices.2.items.10.5":[1.0,"c"],"invoices.2.items.10.6":[1.0,"c"],"invoices.2.items.11.1":[1.0,"c"],"invoices.2.items.11.2":[1.0,"c"],"invoices.2.items.11.3":[1.0,"c"],"invoices.2.items.11.4":[1.0,"c"],"invoices.2.items.11.5":[1.0,"c"],"invoices.2.items.11.6":[1.0,"c"],"invoices.2.items.12.1":[1.0,"c"],"invoices.2.items.12.2":[1.0,"c"],"invoices.2.items.12.3":[1.0,"c"],"invoices.2.items.12.4":[1.0,"c"],"invoices.2.items.12.5":[1.0,"c"],"invoices.2.items.12.6":[1.0,"c"],"invoices.2.items.13.1":[1.0,"c"],"invoices.2.items.13.2":[1.0,"c"],"invoices.2.items.13.3":[1.0,"c"],"invoices.2.items.13.5":[1.0,"c"],"invoices.2.items.13.6":[1.0,"c"],"invoices.2.items.14.1":[1.0,"c"],"invoices.2.items.14.2":[1.0,"c"],"invoices.2.items.14.3":[1.0,"c"],"invoices.2.items.14.5":[1.0,"c"],"invoices.2.items.14.6":[1.0,"c"],"invoices.2.items.15.1":[1.0,"c"],"invoices.2.items.15.2":[1.0,"c"],"invoices.2.items.15.3":[1.0,"c"],"invoices.2.items.15.5":[1.0,"c"],"invoices.2.items.15.6":[1.0,"c"],"invoices.2.items.16.1":[1.0,"c"],"invoices.2.items.16.2":[1.0,"c"],"invoices.2.items.16.3":[1.0,"c"],"invoices.2.items.16.4":[1.0,"c"],"invoices.2.items.16.5":[1.0,"c"],"invoices.2.items.16.6":[1.0,"c"],"invoices.2.items.17.1":[1.0,"c"],"invoices.2.items.17.2":[1.0,"c"],"invoices.2.items.17.3":[1.0,"c"],"invoices.2.items.17.5":[1.0,"c"],"invoices.2.items.17.6":[1.0,"c"],"invoices.2.items.18.1":[1.0,"c"],"invoices.2.items.18.2":[1.0,"c"],"invoices.2.items.18.3":[1.0,"c"],"invoices.2.items.18.4":[1.0,"c"],"invoices.2.items.18.5":[1.0,"c"],"invoices.2.items.18.6":[1.0,"c"],"invoices.2.items.19.1":[1.0,"c"],"invoices.2.items.19.2":[1.0,"c"],"invoices.2.items.19.3":[1.0,"c"],"invoices.2.items.19.4":[1.0,"c"],"invoices.2.items.19.5":[1.0,"c"],"invoices.2.items.19.6":[1.0,"c"],"invoices.2.items.20.1":[1.0,"c"],"invoices.2.items.20.2":[1.0,"c"],"invoices.2.items.20.3":[1.0,"c"],"invoices.2.items.20.4":[1.0,"c"],"invoices.2.items.20.5":[1.0,"c"],"invoices.2.items.20.6":[1.0,"c"],"invoices.2.items.21.1":[1.0,"c"],"invoices.2.items.21.2":[1.0,"c"],"invoices.2.items.21.3":[1.0,"c"],"invoices.2.items.21.5":[1.0,"c"],"invoices.2.items.21.6":[1.0,"c"],"invoices.2.items.22.1":[1.0,"c"],"invoices.2.items.22.2":[1.0,"c"],"invoices.2.items.22.3":[1.0,"c"],"invoices.2.items.22.5":[1.0,"c"],"invoices.2.items.22.6":[1.0,"c"],"invoices.2.items.23.1":[1.0,"c"],"invoices.2.items.23.2":[1.0,"c"],"invoices.2.items.23.3":[1.0,"c"],"invoices.2.items.23.5":[1.0,"c"],"invoices.2.items.23.6":[1.0,"c"],"invoices.2.items.24.1":[1.0,"c"],"invoices.2.items.24.2":[1.0,"c"],"invoices.2.items.24.3":[1.0,"c"],"invoices.2.items.24.4":[1.0,"c"],"invoices.2.items.24.5":[1.0,"c"],"invoices.2.items.24.6":[1.0,"c"],"invoices.2.items.25.1":[1.0,"c"],"invoices.2.items.25.2":[1.0,"c"],"invoices.2.items.25.3":[1.0,"c"],"invoices.2.items.25.5":[1.0,"c"],"invoices.2.items.25.6":[1.0,"c"],"invoices.2.items.26.1":[1.0,"c"],"invoices.2.items.26.2":[1.0,"c"],"invoices.2.items.26.3":[1.0,"c"],"invoices.2.items.26.4":[1.0,"c"],"invoices.2.items.26.5":[1.0,"c"],"invoices.2.items.26.6":[1.0,"c"],"invoices.2.items.27.1":[1.0,"c"],"invoices.2.items.27.2":[1.0,"c"],"invoices.2.items.27.3":[1.0,"c"],"invoices.2.items.27.5":[1.0,"c"],"invoices.2.items.27.6":[1.0,"c"],"invoices.2.items.28.1":[1.0,"c"],"invoices.2.items.28.2":[1.0,"c"],"invoices.2.items.28.3":[1.0,"c"],"invoices.2.items.28.4":[1.0,"c"],"invoices.2.items.28.5":[1.0,"c"],"invoices.2.items.28.6":[1.0,"c"],"invoices.2.items.29.1":[1.0,"c"],"invoices.2.items.29.2":[1.0,"c"],"invoices.2.items.29.3":[1.0,"c"],"invoices.2.items.29.4":[1.0,"c"],"invoices.2.items.29.5":[1.0,"c"],"invoices.2.items.29.6":[1.0,"c"],"invoices.2.items.30.1":[1.0,"c"],"invoices.2.items.30.2":[1.0,"c"],"invoices.2.items.30.3":[1.0,"c"],"invoices.2.items.30.4":[1.0,"c"],"invoices.2.items.30.5":[1.0,"c"],"invoices.2.items.30.6":[1.0,"c"],"invoices.2.items.31.1":[1.0,"c"],"invoices.2.items.31.2":[1.0,"c"],"invoices.2.items.31.3":[1.0,"c"],"invoices.2.items.31.5":[1.0,"c"],"invoices.2.items.31.6":[1.0,"c"],"invoices.2.items.32.1":[1.0,"c"],"invoices.2.items.32.2":[1.0,"c"],"invoices.2.items.32.3":[1.0,"c"],"invoices.2.items.32.5":[1.0,"c"],"invoices.2.items.32.6":[1.0,"c"],"invoices.2.items.33.1":[1.0,"c"],"invoices.2.items.33.2":[1.0,"c"],"invoices.2.items.33.3":[1.0,"c"],"invoices.2.items.33.5":[1.0,"c"],"invoices.2.items.33.6":[1.0,"c"],"invoices.2.items.34.1":[1.0,"c"],"invoices.2.items.34.2":[1.0,"c"],"invoices.2.items.34.3":[1.0,"c"],"invoices.2.items.34.5":[1.0,"c"],"invoices.2.items.34.6":[1.0,"c"],"invoices.2.items.35.1":[1.0,"c"],"invoices.2.items.35.2":[1.0,"c"],"invoices.2.items.35.3":[1.0,"c"],"invoices.2.items.35.5":[1.0,"c"],"invoices.2.items.35.6":[1.0,"c"],"invoices.2.items.36.1":[1.0,"c"],"invoices.2.items.36.2":[1.0,"c"],"invoices.2.items.36.3":[1.0,"c"],"invoices.2.items.36.5":[1.0,"c"],"invoices.2.items.36.6":[1.0,"c"],"invoices.2.items.37.1":[1.0,"c"],"invoices.2.items.37.2":[1.0,"c"],"invoices.2.items.37.3":[1.0,"c"],"invoices.2.items.37.5":[1.0,"c"],"invoices.2.items.37.6":[1.0,"c"],"invoices.2.items.38.1":[1.0,"c"],"invoices.2.items.38.2":[1.0,"c"],"invoices.2.items.38.3":[1.0,"c"],"invoices.2.items.38.5":[1.0,"c"],"invoices.2.items.38.6":[1.0,"c"],"invoices.2.items.39.1":[1.0,"c"],"invoices.2.items.39.2":[1.0,"c"],"invoices.2.items.39.3":[1.0,"c"],"invoices.2.items.39.5":[1.0,"c"],"invoices.2.items.39.6":[1.0,"c"],"invoices.2.items.40.1":[1.0,"c"],"invoices.2.items.40.2":[1.0,"c"],"invoices.2.items.40.3":[1.0,"c"],"invoices.2.items.40.5":[1.0,"c"],"invoices.2.items.40.6":[1.0,"c"],"invoices.2.items.41.1":[1.0,"c"],"invoices.2.items.41.2":[1.0,"c"],"invoices.2.items.41.3":[1.0,"c"],"invoices.2.items.41.5":[1.0,"c"],"invoices.2.items.41.6":[1.0,"c"],"invoices.2.items.42.1":[1.0,"c"],"invoices.2.items.42.2":[1.0,"c"],"invoices.2.items.42.3":[1.0,"c"],"invoices.2.items.42.5":[1.0,"c"],"invoices.2.items.42.6":[1.0,"c"],"invoices.2.items.43.1":[1.0,"c"],"invoices.2.items.43.2":[1.0,"c"],"invoices.2.items.43.3":[1.0,"c"],"invoices.2.items.43.5":[1.0,"c"],"invoices.2.items.43.6":[1.0,"c"],"invoices.2.items.44.1":[1.0,"c"],"invoices.2.items.44.2":[1.0,"c"],"invoices.2.items.44.3":[1.0,"c"],"invoices.2.items.44.5":[1.0,"c"],"invoices.2.items.44.6":[1.0,"c"],"invoices.2.items.45.1":[1.0,"c"],"invoices.2.items.45.2":[1.0,"c"],"invoices.2.items.45.3":[1.0,"c"],"invoices.2.items.45.5":[1.0,"c"],"invoices.2.items.45.6":[1.0,"c"],"invoices.2.items.46.1":[1.0,"c"],"invoices.2.items.46.2":[1.0,"c"],"invoices.2.items.46.3":[1.0,"c"],"invoices.2.items.46.5":[1.0,"c"],"invoices.2.items.46.6":[1.0,"c"],"invoices.2.items.47.1":[1.0,"c"],"invoices.2.items.47.2":[1.0,"c"],"invoices.2.items.47.3":[1.0,"c"],"invoices.2.items.47.5":[1.0,"c"],"invoices.2.items.47.6":[1.0,"c"],"invoices.2.items.48.1":[1.0,"c"],"invoices.2.items.48.2":[1.0,"c"],"invoices.2.items.48.3":[1.0,"c"],"invoices.2.items.48.5":[1.0,"c"],"invoices.2.items.48.6":[1.0,"c"],"invoices.2.duties.1.cth":[1.0,"c"],"invoices.2.duties.1.assessValue":[1.0,"c"],"invoices.2.duties.1.totalDuty":[1.0,"c"],"invoices.2.duties.1.bcdRate":[1.0,"c"],"invoices.2.duties.1.swsAmount":[1.0,"c"],"invoices.2.duties.1.igstRate":[1.0,"c"],"invoices.2.duties.1.igstAmount":[1.0,"c"],"invoices.2.duties.2.cth":[1.0,"c"],"invoices.2.duties.2.assessValue":[1.0,"c"],"invoices.2.duties.2.totalDuty":[1.0,"c"],"invoices.2.duties.2.bcdRate":[1.0,"c"],"invoices.2.duties.2.swsAmount":[1.0,"c"],"invoices.2.duties.2.igstRate":[1.0,"c"],"invoices.2.duties.2.igstAmount":[1.0,"c"],"invoices.2.duties.3.cth":[1.0,"c"],"invoices.2.duties.3.assessValue":[1.0,"c"],"invoices.2.duties.3.totalDuty":[1.0,"c"],"invoices.2.duties.3.bcdRate":[1.0,"c"],"invoices.2.duties.3.swsAmount":[1.0,"c"],"invoices.2.duties.3.igstRate":[1.0,"c"],"invoices.2.duties.3.igstAmount":[1.0,"c"],"invoices.2.duties.4.cth":[1.0,"c"],"invoices.2.duties.4.assessValue":[1.0,"c"],"invoices.2.duties.4.totalDuty":[1.0,"c"],"invoices.2.duties.4.bcdRate":[1.0,"c"],"invoices.2.duties.4.swsAmount":[1.0,"c"],"invoices.2.duties.4.igstRate":[1.0,"c"],"invoices.2.duties.4.igstAmount":[1.0,"c"],"invoices.2.duties.5.cth":[1.0,"c"],"invoices.2.duties.5.assessValue":[1.0,"c"],"invoices.2.duties.5.totalDuty":[1.0,"c"],"invoices.2.duties.5.bcdRate":[1.0,"c"],"invoices.2.duties.5.swsAmount":[1.0,"c"],"invoices.2.duties.5.igstRate":[1.0,"c"],"invoices.2.duties.5.igstAmount":[1.0,"c"],"invoices.2.duties.6.cth":[1.0,"c"],"invoices.2.duties.6.assessValue":[1.0,"c"],"invoices.2.duties.6.totalDuty":[1.0,"c"],"invoices.2.duties.6.bcdRate":[1.0,"c"],"invoices.2.duties.6.swsAmount":[1.0,"c"],"invoices.2.duties.6.igstRate":[1.0,"c"],"invoices.2.duties.6.igstAmount":[1.0,"c"],"invoices.2.duties.7.cth":[1.0,"c"],"invoices.2.duties.7.assessValue":[1.0,"c"],"invoices.2.duties.7.totalDuty":[1.0,"c"],"invoices.2.duties.7.bcdRate":[1.0,"c"],"invoices.2.duties.7.swsAmount":[1.0,"c"],"invoices.2.duties.7.igstRate":[1.0,"c"],"invoices.2.duties.7.igstAmount":[1.0,"c"],"invoices.2.duties.8.cth":[1.0,"c"],"invoices.2.duties.8.assessValue":[1.0,"c"],"invoices.2.duties.8.totalDuty":[1.0,"c"],"invoices.2.duties.8.bcdRate":[1.0,"c"],"invoices.2.duties.8.swsAmount":[1.0,"c"],"invoices.2.duties.8.igstRate":[1.0,"c"],"invoices.2.duties.8.igstAmount":[1.0,"c"],"invoices.2.duties.9.cth":[1.0,"c"],"invoices.2.duties.9.assessValue":[1.0,"c"],"invoices.2.duties.9.totalDuty":[1.0,"c"],"invoices.2.duties.9.bcdRate":[1.0,"c"],"invoices.2.duties.9.swsAmount":[1.0,"c"],"invoices.2.duties.9.igstRate":[1.0,"c"],"invoices.2.duties.9.igstAmount":[1.0,"c"],"invoices.2.duties.10.cth":[1.0,"c"],"invoices.2.duties.10.assessValue":[1.0,"c"],"invoices.2.duties.10.totalDuty":[1.0,"c"],"invoices.2.duties.10.bcdRate":[1.0,"c"],"invoices.2.duties.10.swsAmount":[1.0,"c"],"invoices.2.duties.10.igstRate":[1.0,"c"],"invoices.2.duties.10.igstAmount":[1.0,"c"],"invoices.2.duties.11.cth":[1.0,"c"],"invoices.2.duties.11.assessValue":[1.0,"c"],"invoices.2.duties.11.totalDuty":[1.0,"c"],"invoices.2.duties.11.bcdRate":[1.0,"c"],"invoices.2.duties.11.swsAmount":[1.0,"c"],"invoices.2.duties.11.igstRate":[1.0,"c"],"invoices.2.duties.11.igstAmount":[1.0,"c"],"invoices.2.duties.12.cth":[1.0,"c"],"invoices.2.duties.12.assessValue":[1.0,"c"],"invoices.2.duties.12.totalDuty":[1.0,"c"],"invoices.2.duties.12.bcdRate":[1.0,"c"],"invoices.2.duties.12.swsAmount":[1.0,"c"],"invoices.2.duties.12.igstRate":[1.0,"c"],"invoices.2.duties.12.igstAmount":[1.0,"c"],"invoices.2.duties.13.cth":[1.0,"c"],"invoices.2.duties.13.assessValue":[1.0,"c"],"invoices.2.duties.13.totalDuty":[1.0,"c"],"invoices.2.duties.13.bcdRate":[1.0,"c"],"invoices.2.duties.13.swsAmount":[1.0,"c"],"invoices.2.duties.13.igstRate":[1.0,"c"],"invoices.2.duties.13.igstAmount":[1.0,"c"],"invoices.2.duties.14.cth":[1.0,"c"],"invoices.2.duties.14.assessValue":[1.0,"c"],"invoices.2.duties.14.totalDuty":[1.0,"c"],"invoices.2.duties.14.bcdRate":[1.0,"c"],"invoices.2.duties.14.swsAmount":[1.0,"c"],"invoices.2.duties.14.igstRate":[1.0,"c"],"invoices.2.duties.14.igstAmount":[1.0,"c"],"invoices.2.duties.15.cth":[1.0,"c"],"invoices.2.duties.15.assessValue":[1.0,"c"],"invoices.2.duties.15.totalDuty":[1.0,"c"],"invoices.2.duties.15.bcdRate":[1.0,"c"],"invoices.2.duties.15.swsAmount":[1.0,"c"],"invoices.2.duties.15.igstRate":[1.0,"c"],"invoices.2.duties.15.igstAmount":[1.0,"c"],"invoices.2.duties.16.cth":[1.0,"c"],"invoices.2.duties.16.assessValue":[1.0,"c"],"invoices.2.duties.16.totalDuty":[1.0,"c"],"invoices.2.duties.16.bcdRate":[1.0,"c"],"invoices.2.duties.16.swsAmount":[1.0,"c"],"invoices.2.duties.16.igstRate":[1.0,"c"],"invoices.2.duties.16.igstAmount":[1.0,"c"],"invoices.2.duties.17.cth":[1.0,"c"],"invoices.2.duties.17.assessValue":[1.0,"c"],"invoices.2.duties.17.totalDuty":[1.0,"c"],"invoices.2.duties.17.bcdRate":[1.0,"c"],"invoices.2.duties.17.swsAmount":[1.0,"c"],"invoices.2.duties.17.igstRate":[1.0,"c"],"invoices.2.duties.17.igstAmount":[1.0,"c"],"invoices.2.duties.18.cth":[1.0,"c"],"invoices.2.duties.18.assessValue":[1.0,"c"],"invoices.2.duties.18.totalDuty":[1.0,"c"],"invoices.2.duties.18.bcdRate":[1.0,"c"],"invoices.2.duties.18.swsAmount":[1.0,"c"],"invoices.2.duties.18.igstRate":[1.0,"c"],"invoices.2.duties.18.igstAmount":[1.0,"c"],"invoices.2.duties.19.cth":[1.0,"c"],"invoices.2.duties.19.assessValue":[1.0,"c"],"invoices.2.duties.19.totalDuty":[1.0,"c"],"invoices.2.duties.19.bcdRate":[1.0,"c"],"invoices.2.duties.19.swsAmount":[1.0,"c"],"invoices.2.duties.19.igstRate":[1.0,"c"],"invoices.2.duties.19.igstAmount":[1.0,"c"],"invoices.2.duties.20.cth":[1.0,"c"],"invoices.2.duties.20.assessValue":[1.0,"c"],"invoices.2.duties.20.totalDuty":[1.0,"c"],"invoices.2.duties.20.bcdRate":[1.0,"c"],"invoices.2.duties.20.swsAmount":[1.0,"c"],"invoices.2.duties.20.igstRate":[1.0,"c"],"invoices.2.duties.20.igstAmount":[1.0,"c"],"invoices.2.duties.21.cth":[1.0,"c"],"invoices.2.duties.21.assessValue":[1.0,"c"],"invoices.2.duties.21.totalDuty":[1.0,"c"],"invoices.2.duties.21.bcdRate":[1.0,"c"],"invoices.2.duties.21.swsAmount":[1.0,"c"],"invoices.2.duties.21.igstRate":[1.0,"c"],"invoices.2.duties.21.igstAmount":[1.0,"c"],"invoices.2.duties.22.cth":[1.0,"c"],"invoices.2.duties.22.assessValue":[1.0,"c"],"invoices.2.duties.22.totalDuty":[1.0,"c"],"invoices.2.duties.22.bcdRate":[1.0,"c"],"invoices.2.duties.22.swsAmount":[1.0,"c"],"invoices.2.duties.22.igstRate":[1.0,"c"],"invoices.2.duties.22.igstAmount":[1.0,"c"],"invoices.2.duties.23.cth":[1.0,"c"],"invoices.2.duties.23.assessValue":[1.0,"c"],"invoices.2.duties.23.totalDuty":[1.0,"c"],"invoices.2.duties.23.bcdRate":[1.0,"c"],"invoices.2.duties.23.swsAmount":[1.0,"c"],"invoices.2.duties.23.igstRate":[1.0,"c"],"invoices.2.duties.23.igstAmount":[1.0,"c"],"invoices.2.duties.24.cth":[1.0,"c"],"invoices.2.duties.24.assessValue":[1.0,"c"],"invoices.2.duties.24.totalDuty":[1.0,"c"],"invoices.2.duties.24.bcdRate":[1.0,"c"],"invoices.2.duties.24.swsAmount":[1.0,"c"],"invoices.2.duties.24.igstRate":[1.0,"c"],"invoices.2.duties.24.igstAmount":[1.0,"c"],"invoices.2.duties.25.cth":[1.0,"c"],"invoices.2.duties.25.assessValue":[1.0,"c"],"invoices.2.duties.25.totalDuty":[1.0,"c"],"invoices.2.duties.25.bcdRate":[1.0,"c"],"invoices.2.duties.25.swsAmount":[1.0,"c"],"invoices.2.duties.25.igstRate":[1.0,"c"],"invoices.2.duties.25.igstAmount":[1.0,"c"],"invoices.2.duties.26.cth":[1.0,"c"],"invoices.2.duties.26.assessValue":[1.0,"c"],"invoices.2.duties.26.totalDuty":[1.0,"c"],"invoices.2.duties.26.bcdRate":[1.0,"c"],"invoices.2.duties.26.swsAmount":[1.0,"c"],"invoices.2.duties.26.igstRate":[1.0,"c"],"invoices.2.duties.26.igstAmount":[1.0,"c"],"invoices.2.duties.27.cth":[1.0,"c"],"invoices.2.duties.27.assessValue":[1.0,"c"],"invoices.2.duties.27.totalDuty":[1.0,"c"],"invoices.2.duties.27.bcdRate":[1.0,"c"],"invoices.2.duties.27.swsAmount":[1.0,"c"],"invoices.2.duties.27.igstRate":[1.0,"c"],"invoices.2.duties.27.igstAmount":[1.0,"c"],"invoices.2.duties.28.cth":[1.0,"c"],"invoices.2.duties.28.assessValue":[1.0,"c"],"invoices.2.duties.28.totalDuty":[1.0,"c"],"invoices.2.duties.28.bcdRate":[1.0,"c"],"invoices.2.duties.28.swsAmount":[1.0,"c"],"invoices.2.duties.28.igstRate":[1.0,"c"],"invoices.2.duties.28.igstAmount":[1.0,"c"],"invoices.2.duties.29.cth":[1.0,"c"],"invoices.2.duties.29.assessValue":[1.0,"c"],"invoices.2.duties.29.totalDuty":[1.0,"c"],"invoices.2.duties.29.bcdRate":[1.0,"c"],"invoices.2.duties.29.swsAmount":[1.0,"c"],"invoices.2.duties.29.igstRate":[1.0,"c"],"invoices.2.duties.29.igstAmount":[1.0,"c"],"invoices.2.duties.30.cth":[1.0,"c"],"invoices.2.duties.30.assessValue":[1.0,"c"],"invoices.2.duties.30.totalDuty":[1.0,"c"],"invoices.2.duties.30.bcdRate":[1.0,"c"],"invoices.2.duties.30.swsAmount":[1.0,"c"],"invoices.2.duties.30.igstRate":[1.0,"c"],"invoices.2.duties.30.igstAmount":[1.0,"c"],"invoices.2.duties.31.cth":[1.0,"c"],"invoices.2.duties.31.assessValue":[1.0,"c"],"invoices.2.duties.31.totalDuty":[1.0,"c"],"invoices.2.duties.31.bcdRate":[1.0,"c"],"invoices.2.duties.31.swsAmount":[1.0,"c"],"invoices.2.duties.31.igstRate":[1.0,"c"],"invoices.2.duties.31.igstAmount":[1.0,"c"],"invoices.2.duties.32.cth":[1.0,"c"],"invoices.2.duties.32.assessValue":[1.0,"c"],"invoices.2.duties.32.totalDuty":[1.0,"c"],"invoices.2.duties.32.bcdRate":[1.0,"c"],"invoices.2.duties.32.swsAmount":[1.0,"c"],"invoices.2.duties.32.igstRate":[1.0,"c"],"invoices.2.duties.32.igstAmount":[1.0,"c"],"invoices.2.duties.33.cth":[1.0,"c"],"invoices.2.duties.33.assessValue":[1.0,"c"],"invoices.2.duties.33.totalDuty":[1.0,"c"],"invoices.2.duties.33.bcdRate":[1.0,"c"],"invoices.2.duties.33.swsAmount":[1.0,"c"],"invoices.2.duties.33.igstRate":[1.0,"c"],"invoices.2.duties.33.igstAmount":[1.0,"c"],"invoices.2.duties.34.cth":[1.0,"c"],"invoices.2.duties.34.assessValue":[1.0,"c"],"invoices.2.duties.34.totalDuty":[1.0,"c"],"invoices.2.duties.34.bcdRate":[1.0,"c"],"invoices.2.duties.34.swsAmount":[1.0,"c"],"invoices.2.duties.34.igstRate":[1.0,"c"],"invoices.2.duties.34.igstAmount":[1.0,"c"],"invoices.2.duties.35.cth":[1.0,"c"],"invoices.2.duties.35.assessValue":[1.0,"c"],"invoices.2.duties.35.totalDuty":[1.0,"c"],"invoices.2.duties.35.bcdRate":[1.0,"c"],"invoices.2.duties.35.swsAmount":[1.0,"c"],"invoices.2.duties.35.igstRate":[1.0,"c"],"invoices.2.duties.35.igstAmount":[1.0,"c"],"invoices.2.duties.36.cth":[1.0,"c"],"invoices.2.duties.36.assessValue":[1.0,"c"],"invoices.2.duties.36.totalDuty":[1.0,"c"],"invoices.2.duties.36.bcdRate":[1.0,"c"],"invoices.2.duties.36.swsAmount":[1.0,"c"],"invoices.2.duties.36.igstRate":[1.0,"c"],"invoices.2.duties.36.igstAmount":[1.0,"c"],"invoices.2.duties.37.cth":[1.0,"c"],"invoices.2.duties.37.assessValue":[1.0,"c"],"invoices.2.duties.37.totalDuty":[1.0,"c"],"invoices.2.duties.37.bcdRate":[1.0,"c"],"invoices.2.duties.37.swsAmount":[1.0,"c"],"invoices.2.duties.37.igstRate":[1.0,"c"],"invoices.2.duties.37.igstAmount":[1.0,"c"],"invoices.2.duties.38.cth":[1.0,"c"],"invoices.2.duties.38.assessValue":[1.0,"c"],"invoices.2.duties.38.totalDuty":[1.0,"c"],"invoices.2.duties.38.bcdRate":[1.0,"c"],"invoices.2.duties.38.swsAmount":[1.0,"c"],"invoices.2.duties.38.igstRate":[1.0,"c"],"invoices.2.duties.38.igstAmount":[1.0,"c"],"invoices.2.duties.39.cth":[1.0,"c"],"invoices.2.duties.39.assessValue":[1.0,"c"],"invoices.2.duties.39.totalDuty":[1.0,"c"],"invoices.2.duties.39.bcdRate":[1.0,"c"],"invoices.2.duties.39.swsAmount":[1.0,"c"],"invoices.2.duties.39.igstRate":[1.0,"c"],"invoices.2.duties.39.igstAmount":[1.0,"c"],"invoices.2.duties.40.cth":[1.0,"c"],"invoices.2.duties.40.assessValue":[1.0,"c"],"invoices.2.duties.40.totalDuty":[1.0,"c"],"invoices.2.duties.40.bcdRate":[1.0,"c"],"invoices.2.duties.40.swsAmount":[1.0,"c"],"invoices.2.duties.40.igstRate":[1.0,"c"],"invoices.2.duties.40.igstAmount":[1.0,"c"],"invoices.2.duties.41.cth":[1.0,"c"],"invoices.2.duties.41.assessValue":[1.0,"c"],"invoices.2.duties.41.totalDuty":[1.0,"c"],"invoices.2.duties.41.bcdRate":[1.0,"c"],"invoices.2.duties.41.swsAmount":[1.0,"c"],"invoices.2.duties.41.igstRate":[1.0,"c"],"invoices.2.duties.41.igstAmount":[1.0,"c"],"invoices.2.duties.42.cth":[1.0,"c"],"invoices.2.duties.42.assessValue":[1.0,"c"],"invoices.2.duties.42.totalDuty":[1.0,"c"],"invoices.2.duties.42.bcdRate":[1.0,"c"],"invoices.2.duties.42.swsAmount":[1.0,"c"],"invoices.2.duties.42.igstRate":[1.0,"c"],"invoices.2.duties.42.igstAmount":[1.0,"c"],"invoices.2.duties.43.cth":[1.0,"c"],"invoices.2.duties.43.assessValue":[1.0,"c"],"invoices.2.duties.43.totalDuty":[1.0,"c"],"invoices.2.duties.43.bcdRate":[1.0,"c"],"invoices.2.duties.43.swsAmount":[1.0,"c"],"invoices.2.duties.43.igstRate":[1.0,"c"],"invoices.2.duties.43.igstAmount":[1.0,"c"],"invoices.2.duties.44.cth":[1.0,"c"],"invoices.2.duties.44.assessValue":[1.0,"c"],"invoices.2.duties.44.totalDuty":[1.0,"c"],"invoices.2.duties.44.bcdRate":[1.0,"c"],"invoices.2.duties.44.swsAmount":[1.0,"c"],"invoices.2.duties.44.igstRate":[1.0,"c"],"invoices.2.duties.44.igstAmount":[1.0,"c"],"invoices.2.duties.45.cth":[1.0,"c"],"invoices.2.duties.45.assessValue":[1.0,"c"],"invoices.2.duties.45.totalDuty":[1.0,"c"],"invoices.2.duties.45.bcdRate":[1.0,"c"],"invoices.2.duties.45.swsAmount":[1.0,"c"],"invoices.2.duties.45.igstRate":[1.0,"c"],"invoices.2.duties.45.igstAmount":[1.0,"c"],"invoices.2.duties.46.cth":[1.0,"c"],"invoices.2.duties.46.assessValue":[1.0,"c"],"invoices.2.duties.46.totalDuty":[1.0,"c"],"invoices.2.duties.46.bcdRate":[1.0,"c"],"invoices.2.duties.46.swsAmount":[1.0,"c"],"invoices.2.duties.46.igstRate":[1.0,"c"],"invoices.2.duties.46.igstAmount":[1.0,"c"],"invoices.2.duties.47.cth":[1.0,"c"],"invoices.2.duties.47.assessValue":[1.0,"c"],"invoices.2.duties.47.totalDuty":[1.0,"c"],"invoices.2.duties.47.bcdRate":[1.0,"c"],"invoices.2.duties.47.swsAmount":[1.0,"c"],"invoices.2.duties.47.igstRate":[1.0,"c"],"invoices.2.duties.47.igstAmount":[1.0,"c"],"invoices.2.duties.48.cth":[1.0,"c"],"invoices.2.duties.48.assessValue":[1.0,"c"],"invoices.2.duties.48.totalDuty":[1.0,"c"],"invoices.2.duties.48.bcdRate":[1.0,"c"],"invoices.2.duties.48.swsAmount":[1.0,"c"],"invoices.2.duties.48.igstRate":[1.0,"c"],"invoices.2.duties.48.igstAmount":[1.0,"c"],"invoices.2.duties.49.cth":[1.0,"c"],"invoices.2.duties.49.assessValue":[1.0,"c"],"invoices.2.duties.49.totalDuty":[1.0,"c"],"invoices.2.duties.49.bcdRate":[1.0,"c"],"invoices.2.duties.49.swsAmount":[1.0,"c"],"invoices.2.duties.49.igstRate":[1.0,"c"],"invoices.2.duties.49.igstAmount":[1.0,"c"],"supportingDocs.0.type":[0.9,"t"],"supportingDocs.0.icegate":[0.9,"t"],"supportingDocs.0.irn":[0.9,"t"],"supportingDocs.0.place":[0.9,"t"],"supportingDocs.0.date":[0.9,"t"],"supportingDocs.1.type":[0.9,"t"],"supportingDocs.1.icegate":[0.9,"t"],"supportingDocs.1.irn":[0.9,"t"],"supportingDocs.1.place":[0.9,"t"],"supportingDocs.1.date":[0.9,"t"],"supportingDocs.2.type":[0.9,"t"],"supportingDocs.2.icegate":[0.9,"t"],"supportingDocs.2.irn":[0.9,"t"],"supportingDocs.2.place":[0.9,"t"],"supportingDocs.2.date":[0.9,"t"],"supportingDocs.3.type":[0.9,"t"],"supportingDocs.3.icegate":[0.9,"t"],"supportingDocs.3.irn":[0.9,"t"],"supportingDocs.3.place":[0.9,"t"],"supportingDocs.3.date":[0.9,"t"],"supportingDocs.4.type":[0.9,"t"],"supportingDocs.4.icegate":[0.9,"t"],"supportingDocs.4.irn":[0.9,"t"],"supportingDocs.4.place":[0.9,"t"],"supportingDocs.4.date":[0.9,"t"],"supportingDocs.5.type":[0.9,"t"],"supportingDocs.5.icegate":[0.9,"t"],"supportingDocs.5.irn":[0.9,"t"],"supportingDocs.5.place":[0.9,"t"],"supportingDocs.5.date":[0.9,"t"],"supportingDocs.6.type":[0.9,"t"],"supportingDocs.6.icegate":[0.9,"t"],"supportingDocs.6.irn":[0.9,"t"],"supportingDocs.6.place":[0.9,"t"],"supportingDocs.6.date":[0.9,"t"],"declarations.8.key":[0.9,"t"],"declarations.9.key":[0.9,"t"],"declarations.10.key":[0.9,"t"],"declarations.14.key":[0.9,"t"],"declarations.15.key":[0.9,"t"],"declarations.16.key":[0.9,"t"],"declarations.17.key":[0.9,"t"],"declarations.18.key":[0.9,"t"],"declarations.19.key":[0.9,"t"],"declarations.20.key":[0.9,"t"],"declarations.21.key":[0.9,"t"],"declarations.22.key":[0.9,"t"],"declarations.23.key":[0.9,"t"],"signatory.chaName":[0.9,"t"],"boe.totalInvoices":[1.0,"c"],"dutySummary.bcd":[1.0,"c"],"invoices.0.items.5.4":[1.0,"c"],"invoices.0.items.6.4":[1.0,"c"],"invoices.0.items.8.4":[1.0,"c"],"invoices.0.items.9.4":[1.0,"c"],"invoices.0.items.14.4":[1.0,"c"],"invoices.0.items.15.4":[1.0,"c"],"invoices.0.items.17.4":[1.0,"c"],"invoices.0.items.18.4":[1.0,"c"],"invoices.0.items.19.4":[1.0,"c"],"invoices.0.items.20.4":[1.0,"c"],"invoices.0.items.24.4":[1.0,"c"],"invoices.0.items.25.4":[1.0,"c"],"invoices.1.items.0.4":[1.0,"c"],"invoices.1.items.1.4":[1.0,"c"],"invoices.1.items.2.4":[1.0,"c"],"invoices.1.items.3.4":[1.0,"c"],"invoices.1.items.4.4":[1.0,"c"],"invoices.1.items.6.4":[1.0,"c"],"invoices.1.items.7.4":[1.0,"c"],"invoices.1.items.8.4":[1.0,"c"],"invoices.1.items.10.4":[1.0,"c"],"invoices.1.items.11.4":[1.0,"c"],"invoices.1.items.13.4":[1.0,"c"],"invoices.1.items.14.4":[1.0,"c"],"invoices.1.items.15.4":[1.0,"c"],"invoices.1.items.16.4":[1.0,"c"],"invoices.1.items.17.4":[1.0,"c"],"invoices.1.items.18.4":[1.0,"c"],"invoices.1.items.19.4":[1.0,"c"],"invoices.1.items.20.4":[1.0,"c"],"invoices.1.items.21.4":[1.0,"c"],"invoices.1.items.22.4":[1.0,"c"],"invoices.1.items.23.4":[1.0,"c"],"invoices.2.items.0.4":[1.0,"c"],"invoices.2.items.1.4":[1.0,"c"],"invoices.2.items.2.4":[1.0,"c"],"invoices.2.items.3.4":[1.0,"c"],"invoices.2.items.4.4":[1.0,"c"],"invoices.2.items.5.4":[1.0,"c"],"invoices.2.items.6.4":[1.0,"c"],"invoices.2.items.8.4":[1.0,"c"],"invoices.2.items.9.4":[1.0,"c"],"invoices.2.items.10.4":[1.0,"c"],"invoices.2.items.13.4":[1.0,"c"],"invoices.2.items.14.4":[1.0,"c"],"invoices.2.items.15.4":[1.0,"c"],"invoices.2.items.17.4":[1.0,"c"],"invoices.2.items.21.4":[1.0,"c"],"invoices.2.items.22.4":[1.0,"c"],"invoices.2.items.23.4":[1.0,"c"],"invoices.2.items.25.4":[1.0,"c"],"invoices.2.items.27.4":[1.0,"c"],"invoices.2.items.31.4":[1.0,"c"],"invoices.2.items.32.4":[1.0,"c"],"invoices.2.items.33.4":[1.0,"c"],"invoices.2.items.34.4":[1.0,"c"],"invoices.2.items.35.4":[1.0,"c"],"invoices.2.items.36.4":[1.0,"c"],"invoices.2.items.37.4":[1.0,"c"],"invoices.2.items.38.4":[1.0,"c"],"invoices.2.items.39.4":[1.0,"c"],"invoices.2.items.40.4":[1.0,"c"],"invoices.2.items.41.4":[1.0,"c"],"invoices.2.items.42.4":[1.0,"c"],"invoices.2.items.43.4":[1.0,"c"],"invoices.2.items.44.4":[1.0,"c"],"invoices.2.items.45.4":[1.0,"c"],"invoices.2.items.46.4":[1.0,"c"],"invoices.2.items.47.4":[1.0,"c"],"invoices.2.items.48.4":[1.0,"c"],"invoices.0.duties.1.bcdAmount":[1.0,"c"],"invoices.0.duties.2.bcdAmount":[1.0,"c"],"invoices.0.duties.3.bcdAmount":[1.0,"c"],"invoices.0.duties.4.bcdAmount":[1.0,"c"],"invoices.0.duties.5.bcdAmount":[1.0,"c"],"invoices.0.duties.6.bcdAmount":[1.0,"c"],"invoices.0.duties.7.bcdAmount":[1.0,"c"],"invoices.0.duties.8.bcdAmount":[1.0,"c"],"invoices.0.duties.9.bcdAmount":[1.0,"c"],"invoices.0.duties.10.bcdAmount":[1.0,"c"],"invoices.0.duties.11.bcdAmount":[1.0,"c"],"invoices.0.duties.12.bcdAmount":[1.0,"c"],"invoices.0.duties.13.bcdAmount":[1.0,"c"],"invoices.0.duties.14.bcdAmount":[1.0,"c"],"invoices.0.duties.15.bcdAmount":[1.0,"c"],"invoices.0.duties.16.bcdAmount":[1.0,"c"],"invoices.0.duties.17.bcdAmount":[1.0,"c"],"invoices.0.duties.18.bcdAmount":[1.0,"c"],"invoices.0.duties.19.bcdAmount":[1.0,"c"],"invoices.0.duties.20.bcdAmount":[1.0,"c"],"invoices.0.duties.21.bcdAmount":[1.0,"c"],"invoices.0.duties.22.bcdAmount":[1.0,"c"],"invoices.0.duties.23.bcdAmount":[1.0,"c"],"invoices.0.duties.24.bcdAmount":[1.0,"c"],"invoices.0.duties.25.bcdAmount":[1.0,"c"],"invoices.0.duties.26.bcdAmount":[1.0,"c"],"invoices.0.duties.27.bcdAmount":[1.0,"c"],"invoices.0.duties.28.bcdAmount":[1.0,"c"],"invoices.1.duties.1.bcdAmount":[1.0,"c"],"invoices.1.duties.2.bcdAmount":[1.0,"c"],"invoices.1.duties.3.bcdAmount":[1.0,"c"],"invoices.1.duties.4.bcdAmount":[1.0,"c"],"invoices.1.duties.5.bcdAmount":[1.0,"c"],"invoices.1.duties.6.bcdAmount":[1.0,"c"],"invoices.1.duties.7.bcdAmount":[1.0,"c"],"invoices.1.duties.8.bcdAmount":[1.0,"c"],"invoices.1.duties.9.bcdAmount":[1.0,"c"],"invoices.1.duties.10.bcdAmount":[1.0,"c"],"invoices.1.duties.11.bcdAmount":[1.0,"c"],"invoices.1.duties.12.bcdAmount":[1.0,"c"],"invoices.1.duties.13.bcdAmount":[1.0,"c"],"invoices.1.duties.14.bcdAmount":[1.0,"c"],"invoices.1.duties.15.bcdAmount":[1.0,"c"],"invoices.1.duties.16.bcdAmount":[1.0,"c"],"invoices.1.duties.17.bcdAmount":[1.0,"c"],"invoices.1.duties.18.bcdAmount":[1.0,"c"],"invoices.1.duties.19.bcdAmount":[1.0,"c"],"invoices.1.duties.20.bcdAmount":[1.0,"c"],"invoices.1.duties.21.bcdAmount":[1.0,"c"],"invoices.1.duties.22.bcdAmount":[1.0,"c"],"invoices.1.duties.23.bcdAmount":[1.0,"c"],"invoices.1.duties.24.bcdAmount":[1.0,"c"],"invoices.2.duties.1.bcdAmount":[1.0,"c"],"invoices.2.duties.2.bcdAmount":[1.0,"c"],"invoices.2.duties.3.bcdAmount":[1.0,"c"],"invoices.2.duties.4.bcdAmount":[1.0,"c"],"invoices.2.duties.5.bcdAmount":[1.0,"c"],"invoices.2.duties.6.bcdAmount":[1.0,"c"],"invoices.2.duties.7.bcdAmount":[1.0,"c"],"invoices.2.duties.8.bcdAmount":[1.0,"c"],"invoices.2.duties.9.bcdAmount":[1.0,"c"],"invoices.2.duties.10.bcdAmount":[1.0,"c"],"invoices.2.duties.11.bcdAmount":[1.0,"c"],"invoices.2.duties.12.bcdAmount":[1.0,"c"],"invoices.2.duties.13.bcdAmount":[1.0,"c"],"invoices.2.duties.14.bcdAmount":[1.0,"c"],"invoices.2.duties.15.bcdAmount":[1.0,"c"],"invoices.2.duties.16.bcdAmount":[1.0,"c"],"invoices.2.duties.17.bcdAmount":[1.0,"c"],"invoices.2.duties.18.bcdAmount":[1.0,"c"],"invoices.2.duties.19.bcdAmount":[1.0,"c"],"invoices.2.duties.20.bcdAmount":[1.0,"c"],"invoices.2.duties.21.bcdAmount":[1.0,"c"],"invoices.2.duties.22.bcdAmount":[1.0,"c"],"invoices.2.duties.23.bcdAmount":[1.0,"c"],"invoices.2.duties.24.bcdAmount":[1.0,"c"],"invoices.2.duties.25.bcdAmount":[1.0,"c"],"invoices.2.duties.26.bcdAmount":[1.0,"c"],"invoices.2.duties.27.bcdAmount":[1.0,"c"],"invoices.2.duties.28.bcdAmount":[1.0,"c"],"invoices.2.duties.29.bcdAmount":[1.0,"c"],"invoices.2.duties.30.bcdAmount":[1.0,"c"],"invoices.2.duties.31.bcdAmount":[1.0,"c"],"invoices.2.duties.32.bcdAmount":[1.0,"c"],"invoices.2.duties.33.bcdAmount":[1.0,"c"],"invoices.2.duties.34.bcdAmount":[1.0,"c"],"invoices.2.duties.35.bcdAmount":[1.0,"c"],"invoices.2.duties.36.bcdAmount":[1.0,"c"],"invoices.2.duties.37.bcdAmount":[1.0,"c"],"invoices.2.duties.38.bcdAmount":[1.0,"c"],"invoices.2.duties.39.bcdAmount":[1.0,"c"],"invoices.2.duties.40.bcdAmount":[1.0,"c"],"invoices.2.duties.41.bcdAmount":[1.0,"c"],"invoices.2.duties.42.bcdAmount":[1.0,"c"],"invoices.2.duties.43.bcdAmount":[1.0,"c"],"invoices.2.duties.44.bcdAmount":[1.0,"c"],"invoices.2.duties.45.bcdAmount":[1.0,"c"],"invoices.2.duties.46.bcdAmount":[1.0,"c"],"invoices.2.duties.47.bcdAmount":[1.0,"c"],"invoices.2.duties.48.bcdAmount":[1.0,"c"],"invoices.2.duties.49.bcdAmount":[1.0,"c"]}};
+
 const TXT = {
   A:"All conditions or restrictions, if any, imposed by the seller or any third party on the disposition or use of the imported goods are specified above.",
   B:"The price paid or payable by the importer is as per the details provided above; any price adjustment after the fact will be settled per the attached contract.",
@@ -547,7 +591,7 @@ const TXT = {
 
 const NAV = [
   {part:"I", label:"Part I — Bill of Entry summary", sections:[
-    {s:"A", l:"Status"}, {s:"B", l:"Declarant"}, {s:"C", l:"Duty summary"},
+    {s:"HDR", l:"Header"}, {s:"A", l:"Status"}, {s:"B", l:"Declarant"}, {s:"C", l:"Duty summary"},
     {s:"D", l:"Manifest"}, {s:"F", l:"Payment"}, {s:"H", l:"Processing"}, {s:"J", l:"Containers"}
   ]},
   {part:"II", label:"Part II — Invoice & valuation", sections:[
@@ -579,11 +623,6 @@ function fmt(n){
   return n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function money(n,cur){ const v=fmt(n); return v===null?null:(cur?v+" "+cur:v); }
-function row(no,label,value){
-  const v = (value===null||value===undefined||value==="") ? '<span class="empty">— not declared</span>' : value;
-  return '<div class="field-row"><div class="fno">'+(no||"")+'</div><div class="flabel">'+label+'</div>'
-    +'<div class="fvalue">'+v+'</div></div>';
-}
 function crumb(partLabel, sectionLabel){
   return '<div class="crumb">Part '+partLabel+' <b>&rsaquo;</b> Section '+sectionLabel+'</div>';
 }
@@ -592,7 +631,7 @@ function crumb(partLabel, sectionLabel){
    ACTIONS
    ============================================================ */
 function openBill(key){
-  state.doc = key; state.page = "detail"; state.part = "I"; state.section = "A";
+  state.doc = key; state.page = "detail"; state.part = "I"; state.section = "HDR"; reviewIdx = 0;
   state.invIdx = 0; state.itemIdx = null; render();
 }
 function backToList(){ state.page = "list"; render(); }
@@ -622,6 +661,7 @@ function billRowHTML(key){
   return '<div class="bill-row item" onclick="openBill(\''+key+'\')">'
     + '<div><div class="beno">'+d.boe.beNo+'</div><span class="badge">'+(d.boe.copyType||"—")+'</span>'
     + (d.uploaded ? '<span class="badge up">Uploaded</span>' : '')
+    + (lowPaths(d).length ? '<span class="badge low" title="Fields below 80% confidence">'+lowPaths(d).length+' to review</span>' : '')
     + '<div class="row-actions">' + pdfLinkHTML(key, d)
     + delControlsHTML(key) + '</div>'
     + '</div>'
@@ -686,7 +726,7 @@ function listPageHTML(){
    ============================================================ */
 function sectionsFor(p, doc){
   if(p.part !== "IV") return p.sections;
-  return p.sections.concat((doc.additional||[]).map(function(x){ return { s:x.code, l:x.code+". "+x.title }; }));
+  return p.sections.concat((doc.additional||[]).map(function(x){ return { s:x.code, l:x.title }; }));
 }
 function renderNav(){
   const el = document.getElementById("navTree");
@@ -697,197 +737,532 @@ function renderNav(){
     if(p.part==="II" || p.part==="III"){
       html += '<div class="inv-tabs">' + doc.invoices.map(function(inv,i){
         const active = (state.invIdx===i && state.part===p.part) ? "active" : "";
-        return '<button class="inv-tab '+active+'" onclick="go(\''+p.part+'\',\''+(state.part===p.part?state.section:"A")+'\',{invIdx:'+i+'})">Inv '+inv.sno+'/'+doc.invoices.length+'</button>';
+        return '<button class="inv-tab '+active+'" onclick="go(\''+p.part+'\',\''+(state.part===p.part?state.section:"A")+'\',{invIdx:'+i+'})">Inv '+inv.sno+'/'+doc.invoices.length+invDot(i)+'</button>';
       }).join("") + '</div>';
     }
     sectionsFor(p, doc).forEach(function(sec){
       const active = state.part===p.part && state.section===sec.s;
       let extra = "";
       if(p.part==="II" && sec.s==="E"){ extra = ' ('+doc.invoices[state.invIdx].items.length+')'; }
-      html += '<button class="sec-btn '+(active?"active":"")+'" onclick="go(\''+p.part+'\',\''+sec.s+'\')">'+sec.l+extra+'</button>';
+      html += '<button class="sec-btn '+(active?"active":"")+'" onclick="go(\''+p.part+'\',\''+sec.s+'\')">'+sec.l+extra
+        + navCount(p.part, sec.s, (p.part==="II"||p.part==="III") ? state.invIdx : -1)+'</button>';
     });
   });
   el.innerHTML = html;
 }
 
-function renderMain(){
-  const doc = DOCS[state.doc];
-  const main = document.getElementById("main");
+/* ============================================================
+   FIELD EDITING + CONFIDENCE
+   Every displayed value carries a data-path into the bill (e.g. invoices.0.valuation.freight).
+   Confidence per path lives in doc.conf; edits are kept in doc.edits so they can be reverted.
+   Uploaded bills save edits to the server; the two sample bills keep theirs in this browser.
+   ============================================================ */
+const LOW_BELOW = 0.8, VLOW_BELOW = 0.5;
+const SAMPLE_EDITS_KEY = "boe_sample_edits";
+const ICON_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+let ACTIVE = null;      // the editor currently open: { el, prev }
+let LOWMAP = {};        // "part|section|inv" -> number of low-confidence fields (for the left menu)
 
-  if(state.part==="I"){
-    let body="", tag="";
-    if(state.section==="A"){ tag="boe_status";
-      body = row("1","BE status",doc.status.beStatus,"be_status") + row("2","Mode",doc.status.mode,"mode")
-        + row("8","Assess",doc.status.assess,"assess") + row("9","Exam",doc.status.exam,"exam")
-        + row("10","HSS",doc.status.hss,"hss") + row("12","Prov / Final",doc.status.provFinal,"prov_final")
-        + row("13","Country of origin",doc.status.countryOfOrigin,"country_of_origin")
-        + row("14","Country of consignment",doc.status.countryOfConsignment,"country_of_consignment")
-        + row("15","Port of loading",doc.status.portOfLoading,"port_of_loading")
-        + row("16","Port of shipment",doc.status.portOfShipment,"port_of_shipment");
-    } else if(state.section==="B"){ tag="boe_declarant";
-      body = row("1","Importer name",doc.declarant.importerName,"importer_name")
-        + row("","Importer address",doc.declarant.importerAddress,"importer_address")
-        + row("2","CB name",doc.declarant.cbName,"cb_name")
-        + row("","AD code",doc.declarant.adCode,"ad_code");
-    } else if(state.section==="C"){ tag="boe_duty_summary"; const s=doc.dutySummary;
-      body = row("1","BCD",fmt(s.bcd),"bcd") + row("3","SWS",fmt(s.sws),"sws") + row("7","IGST",fmt(s.igst),"igst")
-        + row("18","Total assessable value",fmt(s.totalAssessableValue),"total_assessable_value")
-        + row("14","Total duty",fmt(s.totalDuty),"total_duty") + row("19","Total amount",fmt(s.totalAmount),"total_amount");
-    } else if(state.section==="D"){ tag="boe_manifest"; const m=doc.manifest;
-      body = row("6","MAWB no.",m.mawbNo,"mawb_no") + row("7","MAWB date",m.mawbDate,"mawb_date")
-        + row("8","HAWB no.",m.hawbNo,"hawb_no") + row("9","HAWB date",m.hawbDate,"hawb_date")
-        + row("10","Packages",m.packages,"packages") + row("11","Gross weight (kg)",m.grossWeightKg,"gross_weight_kg");
-    } else if(state.section==="F"){ tag="boe_payment";
-      body = doc.payments.map(function(p){ return row(p.srNo,"Challan "+p.challanNo,money(p.amount,"INR")+" &middot; paid "+p.paidOn,"amount"); }).join("");
-    } else if(state.section==="H"){ tag="boe_processing_event";
-      body = doc.events.map(function(e){ return row("",e.event,e.date+" &middot; "+e.time+" &middot; "+e.rate,"event_name / exchange_rate_text"); }).join("");
-    } else if(state.section==="J"){ tag="boe_container";
-      if(doc.containers.length===0){ body = row("","Containers","<span class='empty'>none declared (LCL / not containerised)</span>",""); }
-      else body = doc.containers.map(function(c){ return row(c.sno,"Container "+c.containerNumber, c.lclFcl+" &middot; truck "+c.truck+" &middot; seal "+c.seal,"container_number"); }).join("");
+function pathGet(obj, path){
+  let o = obj; const t = path.split(".");
+  for(let i=0;i<t.length;i++){ if(o===null||o===undefined) return undefined; o = o[t[i]]; }
+  return o;
+}
+function pathSet(obj, path, val){
+  const t = path.split("."); let o = obj;
+  for(let i=0;i<t.length-1;i++){ o = o[t[i]]; if(o===null||o===undefined||typeof o!=="object") return false; }
+  o[t[t.length-1]] = val; return true;
+}
+function curDoc(){ return DOCS[state.doc]; }
+function curRaw(){ return RAW[state.doc]; }
+
+function confOf(path){ const c = curDoc().conf; return c ? c[path] : undefined; }
+function confClass(c){
+  if(!c) return "";
+  if(c.b==="edited") return "c-edited";
+  return c.s < VLOW_BELOW ? "c-vlow" : (c.s < LOW_BELOW ? "c-low" : "c-ok");
+}
+function confTip(c){
+  if(!c) return "Not scored: blank value, a one-letter flag, or nothing to match against";
+  if(c.b==="edited") return "Edited by you";
+  const q = curDoc().quality;
+  const base = c.b==="checked"
+    ? "Found on the page and passed the cross-checks"+((q&&q.evaluator)?", audited by a second model":"")
+    : "Matched against the PDF text";
+  return base+": "+Math.round(c.s*100)+"%"+((c.r&&c.r.length) ? "\n"+c.r.join("\n") : "");
+}
+function confPill(c){
+  if(!c) return '<span class="cpill none" title="'+confTip(c)+'">&ndash;</span>';
+  const label = c.b==="edited" ? "edited" : Math.round(c.s*100)+"%";
+  return '<span class="cpill '+confClass(c)+'" title="'+confTip(c)+'">'+label+'</span>';
+}
+
+/* ---- one labelled field row (editable when it has a path) ---- */
+function row(no,label,value,path,opts){
+  opts = opts||{};
+  const empty = (value===null||value===undefined||value==="");
+  const v = empty ? '<span class="empty">— not declared</span>' : value;
+  if(!path){
+    return '<div class="field-row"><div class="fno">'+(no||"")+'</div><div class="flabel">'+label+'</div><div class="fvalue">'+v+'</div></div>';
+  }
+  const c = confOf(path);
+  return '<div class="field-row editable '+confClass(c)+'" data-path="'+path+'"'+(opts.multi?' data-multi="1"':'')+'>'
+    + '<div class="fno">'+(no||"")+'</div><div class="flabel">'+label+'</div><div class="fvalue">'+v+'</div>'
+    + '<div class="fmeta">'+confPill(c)+'<button class="fedit" title="Edit this field" onclick="editField(this)">'+ICON_EDIT+'</button></div></div>';
+}
+/* Fld reads the value itself: opts.fmt custom formatter, opts.raw plain number, opts.multi long text */
+function Fld(no,label,path,opts){
+  opts = opts||{};
+  const raw = pathGet(curDoc(), path);
+  let shown = raw;
+  if(opts.fmt) shown = opts.fmt(raw);
+  else if(typeof raw==="number") shown = opts.raw ? String(raw) : fmt(raw);
+  return row(no,label,shown,path,opts);
+}
+function sheetRows(list){ return list.map(function(r){ return Fld(r[0], r[1], r[2], r[3]); }).join(""); }
+
+/* ---- table cells: editable (ecell) or read-only (rcell) ---- */
+function cellHTML(path, shown, cls, editable){
+  const c = confOf(path);
+  const empty = (shown===null||shown===undefined||shown==="");
+  return '<td class="'+(editable?'ecell ':'rcell ')+(cls||"")+' '+confClass(c)+'" data-path="'+path+'" title="'+confTip(c)+(editable?'\nClick to edit':'')+'"'
+    + (editable ? ' onclick="editCell(this)"' : '') + '>' + (empty ? '<span class="empty">&mdash;</span>' : shown) + '</td>';
+}
+function ecell(path, shown, cls){ return cellHTML(path, shown, cls, true); }
+function rcell(path, shown, cls){ return cellHTML(path, shown, cls, false); }
+function tbl(head, bodyRows, extra){
+  return '<div class="items-wrap"><table class="items"><thead><tr>'+head.map(function(h){ return '<th>'+h+'</th>'; }).join("")
+    + '</tr></thead><tbody>'+bodyRows+'</tbody>'+(extra||"")+'</table></div>';
+}
+
+/* ---- editor open / close ---- */
+function closeEditor(){
+  if(!ACTIVE) return;
+  ACTIVE.el.innerHTML = ACTIVE.prev; ACTIVE.el.classList.remove("editing"); ACTIVE = null;
+}
+function editorHTML(path, multi){
+  const raw = pathGet(curRaw(), path);
+  const val = (raw===null||raw===undefined) ? "" : String(raw);
+  const big = multi || val.length>70 || val.indexOf("\n")>=0;
+  const rec = (curRaw().edits||{})[path];
+  return (big ? '<textarea class="ein" rows="3">'+escapeHtml(val)+'</textarea>'
+              : '<input class="ein" type="text" value="'+escapeHtml(val)+'">')
+    + '<div class="ebtns"><button class="btn primary" data-act="save">Save</button><button class="btn" data-act="cancel">Cancel</button>'
+    + (rec ? '<button class="btn" data-act="revert">Revert to extracted value</button>' : '') + '</div>'
+    + '<div class="eerr"></div>'
+    + (rec ? '<div class="eorig">Extracted value: '+escapeHtml(rec.orig===null||rec.orig===undefined ? "(blank)" : String(rec.orig))+'</div>' : '')
+    + '<span class="big" hidden>'+(big?1:0)+'</span>';
+}
+function wireEditor(el, path){
+  const inp = el.querySelector(".ein"); const big = el.querySelector(".big").textContent==="1";
+  inp.focus(); inp.select();
+  inp.addEventListener("keydown", function(e){
+    if(e.key==="Escape"){ e.preventDefault(); closeEditor(); }
+    else if(e.key==="Enter" && (!big || e.ctrlKey || e.metaKey)){ e.preventDefault(); commitEdit(path, inp.value, el); }
+  });
+  el.querySelectorAll("[data-act]").forEach(function(b){
+    b.addEventListener("click", function(e){
+      e.stopPropagation();
+      const a = b.dataset.act;
+      if(a==="save") commitEdit(path, inp.value, el);
+      else if(a==="cancel") closeEditor();
+      else if(a==="revert") revertEdit(path, el);
+    });
+  });
+}
+function editField(btn){
+  const rowEl = btn.closest(".field-row"); const path = rowEl.dataset.path;
+  if(ACTIVE && ACTIVE.el===rowEl.querySelector(".fvalue")) return;
+  closeEditor();
+  const cell = rowEl.querySelector(".fvalue");
+  ACTIVE = { el: cell, prev: cell.innerHTML };
+  rowEl.classList.add("editing"); cell.classList.add("editing");
+  cell.innerHTML = editorHTML(path, rowEl.dataset.multi==="1");
+  wireEditor(cell, path);
+}
+function editCell(td){
+  if(td.classList.contains("editing")) return;
+  closeEditor();
+  const path = td.dataset.path;
+  ACTIVE = { el: td, prev: td.innerHTML };
+  td.classList.add("editing");
+  td.innerHTML = editorHTML(path, false);
+  wireEditor(td, path);
+}
+
+/* ---- apply / persist ---- */
+const NUMLEAF = /(freight|invoiceValue|loading|commission|miscCharge|assessValue|amount|bcd|sws|igst|totalDuty|totalAssessableValue|totalAmount|totalInvoices|totalItems|totalContainers|totalPackages|packages)/i;
+function coerce(orig, text, path){
+  const t = text.trim();
+  if(t==="") return null;
+  const leaf = path.split(".").pop();
+  const numeric = (typeof orig==="number") || ((orig===null||orig===undefined) && NUMLEAF.test(leaf) && /^-?[\d,]*\.?\d+$/.test(t));
+  if(numeric){
+    const n = Number(t.replace(/,/g,""));
+    if(!isFinite(n)) throw new Error("Please enter a number.");
+    return n;
+  }
+  return t;
+}
+function applyLocalEdit(raw, path, value, revert){
+  raw.edits = raw.edits||{}; raw.conf = raw.conf||{};
+  const cur = pathGet(raw, path); const curv = (cur===undefined) ? null : cur;
+  if(revert){
+    const rec = raw.edits[path]; if(!rec) return;
+    pathSet(raw, path, rec.orig);
+    if(rec.origConf==null) delete raw.conf[path]; else raw.conf[path] = rec.origConf;
+    delete raw.edits[path]; return;
+  }
+  const rec = raw.edits[path] || { orig: curv, origConf: raw.conf[path]||null };
+  pathSet(raw, path, value);
+  if(value===rec.orig){
+    delete raw.edits[path];
+    if(rec.origConf==null) delete raw.conf[path]; else raw.conf[path] = rec.origConf;
+  } else {
+    rec.at = new Date().toISOString().slice(0,19).replace("T"," ");
+    raw.edits[path] = rec; raw.conf[path] = { s:1, b:"edited", r:[] };
+  }
+}
+function persistSample(key){
+  const raw = RAW[key]; const out = {};
+  Object.keys(raw.edits||{}).forEach(function(p){
+    const e = raw.edits[p]; out[p] = { orig:e.orig, origConf:e.origConf||null, at:e.at||"", value:pathGet(raw,p) };
+  });
+  let all = {};
+  try{ all = JSON.parse(localStorage.getItem(SAMPLE_EDITS_KEY)||"{}"); }catch(e){}
+  if(Object.keys(out).length) all[key] = out; else delete all[key];
+  try{ localStorage.setItem(SAMPLE_EDITS_KEY, JSON.stringify(all)); }catch(e){}
+}
+function editErr(el, msg){
+  const e = el && el.querySelector ? el.querySelector(".eerr") : null;
+  if(e) e.textContent = msg; else toast(msg);
+}
+async function sendEdit(raw, body){
+  if(!raw.uploaded) return;
+  const r = await fetch("/api/docs/"+raw.id+"/edit", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) });
+  const j = await r.json().catch(function(){ return {}; });
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+}
+async function commitEdit(path, text, el){
+  const key = state.doc, raw = RAW[key];
+  let val;
+  try{ val = coerce(pathGet(raw, path), text, path); }catch(e){ return editErr(el, e.message); }
+  const cur = pathGet(raw, path);
+  if((cur===undefined ? null : cur) === val){ closeEditor(); return; }
+  try{ await sendEdit(raw, { path:path, value:val }); }catch(e){ return editErr(el, e.message); }
+  applyLocalEdit(raw, path, val, false);
+  afterEdit(key, path);
+}
+async function revertEdit(path, el){
+  const key = state.doc, raw = RAW[key];
+  try{ await sendEdit(raw, { path:path, revert:true }); }catch(e){ return editErr(el, e.message); }
+  applyLocalEdit(raw, path, null, true);
+  afterEdit(key, path);
+}
+function afterEdit(key, path){
+  if(!RAW[key].uploaded) persistSample(key);
+  DOCS[key] = deepEscape(RAW[key]);
+  ACTIVE = null;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+  const el = document.querySelector('[data-path="'+path+'"]'); if(el) el.classList.add("flash");
+}
+
+/* ---- confidence summary: left-menu counts, review bar, "review next" ---- */
+function lowPaths(doc){
+  const out = [], c = doc.conf||{};
+  Object.keys(c).forEach(function(p){ if(c[p].b!=="edited" && c[p].s < LOW_BELOW) out.push(p); });
+  return out;
+}
+function locate(path, doc){
+  const t = path.split("."), h = t[0];
+  const top = { boe:["I","HDR"], status:["I","A"], declarant:["I","B"], dutySummary:["I","C"], manifest:["I","D"], payments:["I","F"],
+    events:["I","H"], containers:["I","J"], supportingDocs:["IV","M"], declarations:["VI","A"], signatory:["VI","B"] };
+  if(top[h]) return top[h];
+  if(h==="invoices"){
+    const i = +t[1], k = t[2];
+    if(k==="parties") return ["II","B",i];
+    if(k==="valuation") return ["II","C",i];
+    if(k==="cost") return ["II","D",i];
+    if(k==="items") return ["II","E",i];
+    if(k==="duties") return ["III","A",i];
+    return ["II","A",i];
+  }
+  if(h==="additional"){ const a = doc.additional && doc.additional[+t[1]]; return a ? ["IV", a.code] : null; }
+  if(h==="compliance"){
+    const f = t[1];
+    if(f==="oocNo" || f==="oocDate") return ["V","C"];
+    if(["compliances","acRemarks","examReport","superintendentComments"].indexOf(f)>=0) return ["V","B"];
+    return ["V","A"];
+  }
+  return null;
+}
+function computeLow(doc){
+  LOWMAP = {};
+  lowPaths(doc).forEach(function(p){
+    const L = locate(p, doc); if(!L) return;
+    const inv = (L[2]===undefined) ? -1 : L[2];
+    [L[0]+"|"+L[1]+"|"+inv, L[0]+"|*|"+inv].forEach(function(k){ LOWMAP[k] = (LOWMAP[k]||0) + 1; });
+  });
+}
+function navCount(part, section, inv){
+  const n = LOWMAP[part+"|"+section+"|"+inv] || 0;
+  return n ? '<span class="navdot" title="'+n+' low-confidence field'+(n===1?'':'s')+'">'+n+'</span>' : '';
+}
+let reviewIdx = 0;
+function reviewNext(){
+  const doc = curDoc(), lows = lowPaths(doc); if(!lows.length) return;
+  reviewIdx = reviewIdx % lows.length;
+  const p = lows[reviewIdx++], L = locate(p, doc); if(!L) return;
+  state.part = L[0]; state.section = L[1]; state.itemIdx = null;
+  if(L[2]!==undefined) state.invIdx = L[2];
+  render();
+  setTimeout(function(){
+    const el = document.querySelector('[data-path="'+p+'"]');
+    if(el){ el.scrollIntoView({ block:"center" }); el.classList.add("flash"); }
+  }, 30);
+}
+function reviewBarHTML(doc){
+  const low = lowPaths(doc).length, ed = Object.keys(doc.edits||{}).length, scored = Object.keys(doc.conf||{}).length;
+  const legend = '<span class="lg"><i class="sw c-low"></i>below 80%</span><span class="lg"><i class="sw c-vlow"></i>below 50%</span><span class="lg"><i class="sw c-edited"></i>edited</span>';
+  return '<div class="rbar '+(low?'warn':'ok')+'"><div class="rtxt">'
+    + (low ? '<b>'+low+' field'+(low===1?'':'s')+' below 80% confidence</b>' : '<b>No low-confidence fields</b>')
+    + ' &middot; '+scored+' scored'+(ed ? ' &middot; '+ed+' edited' : '')
+    + '</div><div class="rbtns">'+(low ? '<button class="btn" onclick="reviewNext()">Review next &rsaquo;</button>' : '')+legend+'</div></div>';
+}
+
+/* ---- sample bills: attach saved scores and any edits kept in this browser ---- */
+function initDocs(){
+  let saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(SAMPLE_EDITS_KEY)||"{}"); }catch(e){}
+  Object.keys(DOCS).forEach(function(k){
+    const raw = JSON.parse(JSON.stringify(DOCS[k]));
+    raw.edits = {}; raw.conf = {};
+    const bc = (typeof BUILTIN_CONF!=="undefined" && BUILTIN_CONF[k]) || {};
+    Object.keys(bc).forEach(function(p){
+      const a = bc[p];
+      raw.conf[p] = { s:a[0], b:(a[1]==="c" ? "checked" : "text"), r:(a[2] ? [a[2]] : []) };
+    });
+    (raw.declarations||[]).forEach(function(d){ if(d.text===undefined) d.text = TXT[d.key]||""; });
+    const sv = saved[k]||{};
+    Object.keys(sv).forEach(function(p){
+      const e = sv[p];
+      if(!pathSet(raw, p, e.value)) return;
+      raw.edits[p] = { orig:e.orig, origConf:e.origConf||null, at:e.at||"" };
+      raw.conf[p] = { s:1, b:"edited", r:[] };
+    });
+    RAW[k] = raw; DOCS[k] = deepEscape(raw);
+  });
+}
+
+/* ============================================================
+   PART III item-duty block (item detail) and the main renderer
+   ============================================================ */
+function dutyBlock(ib, sno){
+  const base = ib+".duties."+sno;
+  if(!pathGet(curDoc(), base)) return '<div class="note">No Part III duty data for this item.</div>';
+  const pct = function(v){ return (v===null||v===undefined) ? null : v+"%"; };
+  return '<div class="item-detail" style="margin-top:12px"><div class="hd">Part III &middot; item duty</div>'
+    + Fld("","Assessable value",base+".assessValue") + Fld("1","BCD rate",base+".bcdRate",{fmt:pct}) + Fld("1","BCD amount",base+".bcdAmount")
+    + Fld("3","SWS amount",base+".swsAmount") + Fld("5","IGST rate",base+".igstRate",{fmt:pct}) + Fld("5","IGST amount",base+".igstAmount")
+    + Fld("","Total duty",base+".totalDuty") + '</div>';
+}
+
+function renderMain(){
+  const doc = curDoc();
+  const main = document.getElementById("main");
+  const P = state.part, S = state.section;
+  const inv = doc.invoices[state.invIdx];
+  const ib = "invoices."+state.invIdx;
+  const sheet = function(h){ return '<div class="sheet">'+h+'</div>'; };
+  const none = function(t){ return '<div class="note">'+t+'</div>'; };
+  const hint = '<div class="note" style="margin:6px 0 12px">Click the pencil on a row, or a table cell, to edit it. Amber and red mark low-confidence values.</div>';
+
+  /* ---------------- Part I ---------------- */
+  if(P==="I"){
+    let body = "", label = "";
+    if(S==="HDR"){ label = "Header";
+      body = sheetRows([["","BE no.","boe.beNo"],["","BE date","boe.beDate"],["","Port code","boe.portCode"],["","Port","boe.port"],
+        ["","BE type","boe.beType"],["","Copy type","boe.copyType"],["","IEC / Br","boe.iecBr"],["","GSTIN / type","boe.gstin"],
+        ["","CB code","boe.cbCode"],["","Document type","boe.docType"],["","Total invoices","boe.totalInvoices",{raw:true}],
+        ["","Total items","boe.totalItems",{raw:true}],["","Total containers","boe.totalContainers",{raw:true}],
+        ["","Total packages","boe.totalPackages",{raw:true}],["","Gross weight (kg)","boe.grossWeightKg",{raw:true}],["","Barcode ref","boe.barcode"]]);
+    } else if(S==="A"){ label = "Status";
+      body = sheetRows([["1","BE status","status.beStatus"],["2","Mode","status.mode"],["8","Assess","status.assess"],["9","Exam","status.exam"],
+        ["10","HSS","status.hss"],["11","First check","status.firstCheck"],["12","Prov / Final","status.provFinal"],
+        ["13","Country of origin","status.countryOfOrigin"],["14","Country of consignment","status.countryOfConsignment"],
+        ["15","Port of loading","status.portOfLoading"],["16","Port of shipment","status.portOfShipment"]]);
+    } else if(S==="B"){ label = "Declarant";
+      body = sheetRows([["1","Importer name","declarant.importerName"],["","Importer address","declarant.importerAddress",{multi:true}],
+        ["2","CB name","declarant.cbName"],["","AD code","declarant.adCode"]]);
+    } else if(S==="C"){ label = "Duty summary";
+      body = sheetRows([["1","BCD","dutySummary.bcd"],["3","SWS","dutySummary.sws"],["7","IGST","dutySummary.igst"],
+        ["18","Total assessable value","dutySummary.totalAssessableValue"],["14","Total duty","dutySummary.totalDuty"],["19","Total amount","dutySummary.totalAmount"]]);
+    } else if(S==="D"){ label = "Manifest";
+      body = sheetRows([["6","MAWB no.","manifest.mawbNo"],["7","MAWB date","manifest.mawbDate"],["8","HAWB no.","manifest.hawbNo"],
+        ["9","HAWB date","manifest.hawbDate"],["10","Packages","manifest.packages",{raw:true}],["11","Gross weight (kg)","manifest.grossWeightKg",{raw:true}]]);
+    } else if(S==="F"){ label = "Payment";
+      body = doc.payments.length ? doc.payments.map(function(p,i){
+          const b = "payments."+i;
+          return Fld(p.srNo,"Challan no.",b+".challanNo") + Fld("","Paid on",b+".paidOn") + Fld("","Amount (INR)",b+".amount");
+        }).join("") : row("","Payments","<span class='empty'>none declared</span>");
+    } else if(S==="H"){ label = "Processing";
+      body = doc.events.length ? tbl(["Event","Date","Time","Exchange rate"], doc.events.map(function(e,i){
+          const b = "events."+i;
+          return '<tr>'+ecell(b+".event",e.event)+ecell(b+".date",e.date)+ecell(b+".time",e.time)+ecell(b+".rate",e.rate)+'</tr>';
+        }).join("")) : none("No processing events declared.");
+    } else if(S==="J"){ label = "Containers";
+      body = doc.containers.length ? tbl(["Sno","LCL / FCL","Truck","Seal","Container no."], doc.containers.map(function(c,i){
+          const b = "containers."+i;
+          return '<tr>'+ecell(b+".sno",c.sno)+ecell(b+".lclFcl",c.lclFcl)+ecell(b+".truck",c.truck)+ecell(b+".seal",c.seal)+ecell(b+".containerNumber",c.containerNumber)+'</tr>';
+        }).join("")) : none("None declared (LCL / not containerised).");
     }
-    const secLabel = NAV[0].sections.find(function(x){return x.s===state.section;}).l;
-    main.innerHTML = crumb("I — Bill of Entry summary", secLabel)
-      + '<h2 class="title">'+secLabel+'</h2><div class="sheet">'+body+'</div>';
+    main.innerHTML = head("I — Bill of Entry summary", label, label) + hint + ((S==="H" || S==="J") ? body : sheet(body));
     return;
   }
 
-  if(state.part==="II"){
-    const inv = doc.invoices[state.invIdx];
-    const label = NAV[1].sections.find(function(x){return x.s===state.section;}).l;
-    let tag="", body="";
-    if(state.section==="A"){ tag="boe_invoice";
-      body = row("1","Invoice no.",inv.no,"invoice_no") + row("","Invoice date",inv.date,"invoice_date")
-        + row("","Invoice amount",money(inv.amount,inv.currency),"invoice_amount / currency_code");
-    } else if(state.section==="B"){ tag="boe_invoice_party"; const p=inv.parties;
-      body = row("1","Buyer",p.buyer,"role=BUYER") + row("2","Seller",p.seller,"role=SELLER")
-        + row("3","Supplier",p.supplier,"role=SUPPLIER") + row("4","Third party",p.thirdParty,"role=THIRD_PARTY");
-    } else if(state.section==="C"){ tag="boe_invoice_valuation"; const v=inv.valuation;
-      body = row("1","Invoice value",money(v.invoiceValue,inv.currency),"invoice_value")
-        + row("2","Freight",v.freight,"freight") + row("3","Insurance",v.insurance,"insurance")
-        + row("7","Pay terms",v.payTerms,"pay_terms") + row("8","Valuation method",v.valuationMethod,"valuation_method")
-        + row("9","Related party",v.relatedParty,"related_party_flag")
-        + row("10","SVB channel",v.svbCh,"svb_ch") + row("11","SVB no.",v.svbNo,"svb_no")
-        + row("15","Incoterm",v.incoterm,"incoterm");
-    } else if(state.section==="D"){ tag="boe_invoice_cost_services"; const c=inv.cost;
-      body = row("13","Misc. charge",fmt(c.miscCharge),"misc_charge") + row("14","Assessable value",fmt(c.assessValue),"assessable_value");
-    } else if(state.section==="E"){ tag="boe_invoice_item";
+  /* ---------------- Part II ---------------- */
+  if(P==="II"){
+    const cur = inv.currency;
+    const label = NAV.filter(function(p){ return p.part==="II"; })[0].sections.filter(function(x){ return x.s===S; })[0].l;
+    const crumbTxt = "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label;
+    const ttl = label+" — Invoice "+inv.sno+"/"+doc.invoices.length;
+    if(S==="A"){
+      main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(
+        Fld("1","Invoice no.",ib+".no") + Fld("","Invoice date",ib+".date")
+        + Fld("","Invoice amount",ib+".amount",{fmt:function(v){ return money(v,cur); }}) + Fld("","Currency",ib+".currency"));
+    } else if(S==="B"){
+      main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
+        ["1","Buyer",ib+".parties.buyer",{multi:true}],["2","Seller",ib+".parties.seller",{multi:true}],
+        ["3","Supplier",ib+".parties.supplier",{multi:true}],["4","Third party",ib+".parties.thirdParty",{multi:true}]]));
+    } else if(S==="C"){
+      const b = ib+".valuation.";
+      main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
+        ["1","Invoice value",b+"invoiceValue",{fmt:function(v){ return money(v,cur); }}],["2","Freight",b+"freight"],["3","Insurance",b+"insurance"],
+        ["4","HSS",b+"hss"],["5","Loading",b+"loading"],["6","Commission",b+"commission"],["7","Pay terms",b+"payTerms"],
+        ["8","Valuation method",b+"valuationMethod"],["9","Related party",b+"relatedParty"],["10","SVB channel",b+"svbCh"],
+        ["11","SVB no.",b+"svbNo"],["12","SVB date",b+"svbDate"],["13","LOA",b+"loa"],["14","Currency",b+"currency"],["15","Incoterm",b+"incoterm"]]));
+    } else if(S==="D"){
+      main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
+        ["13","Misc. charge",ib+".cost.miscCharge"],["14","Assessable value",ib+".cost.assessValue"]]));
+    } else if(S==="E"){
       if(state.itemIdx!==null){
-        const it = inv.items[state.itemIdx];
+        const it = inv.items[state.itemIdx], b = ib+".items."+state.itemIdx;
         const detail = '<div class="item-detail"><div class="hd">Item '+it[0]+' &middot; '+it[1]+'<button onclick="closeItem()">close &times;</button></div>'
-          + row("2","CTH",it[1],"cth") + row("3","Description",it[2],"description")
-          + row("4","Unit price",fmt(it[3]),"unit_price") + row("5","Quantity",it[4]+" "+it[5],"quantity / uqc")
-          + row("7","Amount",fmt(it[6]),"amount")
-          + '</div>'
-          + (inv.duties && inv.duties[String(it[0])] ? dutyHTML(inv.duties[String(it[0])]) : '<div class="note">Part III duty assessment for this item (BCD / SWS / IGST / CAIDC breakdown) is not loaded in this demo — boe_item_duty is schema-ready but intentionally left empty rather than risk a mistranscribed figure from the source scan.</div>');
-        main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
-          + '<h2 class="title">Item '+it[0]+' of '+inv.items.length+'</h2>'+detail;
+          + sheetRows([["2","CTH",b+".1"],["3","Description",b+".2",{multi:true}],["4","Unit price",b+".3"],
+              ["5","Quantity",b+".4",{raw:true}],["6","UQC",b+".5"],["7","Amount",b+".6"]])
+          + '</div>' + dutyBlock(ib, it[0]);
+        main.innerHTML = crumb("II — Invoice & valuation", crumbTxt) + '<h2 class="title">Item '+it[0]+' of '+inv.items.length+'</h2>' + hint + detail;
         return;
       }
-      body = '<div class="items-wrap"><table class="items">'
-        + '<thead><tr><th>#</th><th>CTH</th><th>Description</th><th>Unit price</th><th>Qty</th><th>Amount</th></tr></thead>'
-        + '<tbody>' + inv.items.map(function(it,i){
-            return '<tr class="item-row" onclick="openItem('+i+')">'
-              + '<td>'+it[0]+'</td><td class="cth">'+it[1]+'</td><td>'+it[2]+'</td>'
-              + '<td class="num">'+fmt(it[3])+'</td><td class="num">'+it[4]+' '+it[5]+'</td><td class="num">'+fmt(it[6])+'</td></tr>';
-          }).join("") + '</tbody></table></div>';
-      main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
-        + '<h2 class="title">'+label+' — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2>' + body;
-      return;
+      const rows = inv.items.map(function(it,i){
+        const b = ib+".items."+i;
+        return '<tr class="item-row" onclick="openItem('+i+')"><td>'+it[0]+'</td>'+rcell(b+".1",it[1],"cth")+rcell(b+".2",it[2])
+          + rcell(b+".3",fmt(it[3]),"num")+rcell(b+".4",(it[4]===null?"":it[4])+" "+(it[5]||""),"num")+rcell(b+".6",fmt(it[6]),"num")+'</tr>';
+      }).join("");
+      main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl)
+        + '<div class="note" style="margin:6px 0 12px">Click an item to open and edit it. Amber and red mark low-confidence values.</div>'
+        + tbl(["#","CTH","Description","Unit price","Qty","Amount"], rows);
     }
-    main.innerHTML = crumb("II — Invoice & valuation", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+label)
-      + '<h2 class="title">'+label+' — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2><div class="sheet">'+body+'</div>';
     return;
   }
 
-  if(state.part==="III"){
-    const inv = doc.invoices[state.invIdx];
+  /* ---------------- Part III ---------------- */
+  if(P==="III"){
     const d = inv.duties || {};
     const ks = Object.keys(d).sort(function(a,b){ return a-b; });
-    const head = crumb("III — Duties", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; Item duties")
-      + '<h2 class="title">Item duties — Invoice '+inv.sno+'/'+doc.invoices.length+'</h2>';
-    if(!ks.length){
-      main.innerHTML = head + '<div class="note">No Part III duty data for this invoice.</div>'; return;
-    }
+    const h = head("III — Duties", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; Item duties", "Item duties — Invoice "+inv.sno+"/"+doc.invoices.length);
+    if(!ks.length){ main.innerHTML = h + none("No Part III duty data for this invoice."); return; }
     const t = {a:0,b:0,s:0,i:0,d:0};
+    const rate = function(r){ return (r===null||r===undefined) ? "" : r+"%"; };
     const rows = ks.map(function(k){
-      const x=d[k]; t.a+=x.assessValue||0; t.b+=x.bcdAmount||0; t.s+=x.swsAmount||0; t.i+=x.igstAmount||0; t.d+=x.totalDuty||0;
-      const rate=function(r){ return (r===null||r===undefined)?"":r+"%"; };
-      return '<tr><td>'+k+'</td><td class="cth">'+(x.cth||"")+'</td><td class="num">'+(fmt(x.assessValue)||"")+'</td>'
-        + '<td class="num">'+rate(x.bcdRate)+'</td><td class="num">'+(fmt(x.bcdAmount)||"")+'</td><td class="num">'+(fmt(x.swsAmount)||"")+'</td>'
-        + '<td class="num">'+rate(x.igstRate)+'</td><td class="num">'+(fmt(x.igstAmount)||"")+'</td><td class="num">'+(fmt(x.totalDuty)||"")+'</td></tr>';
+      const x = d[k], b = ib+".duties."+k;
+      t.a+=x.assessValue||0; t.b+=x.bcdAmount||0; t.s+=x.swsAmount||0; t.i+=x.igstAmount||0; t.d+=x.totalDuty||0;
+      return '<tr><td>'+k+'</td>'+ecell(b+".cth",x.cth,"cth")+ecell(b+".assessValue",fmt(x.assessValue),"num")+ecell(b+".bcdRate",rate(x.bcdRate),"num")
+        + ecell(b+".bcdAmount",fmt(x.bcdAmount),"num")+ecell(b+".swsAmount",fmt(x.swsAmount),"num")+ecell(b+".igstRate",rate(x.igstRate),"num")
+        + ecell(b+".igstAmount",fmt(x.igstAmount),"num")+ecell(b+".totalDuty",fmt(x.totalDuty),"num")+'</tr>';
     }).join("");
-    main.innerHTML = head
-      + '<div class="items-wrap"><table class="items"><thead><tr><th>Item</th><th>CTH</th><th>Assess value</th><th>BCD rate</th><th>BCD</th><th>SWS</th><th>IGST rate</th><th>IGST</th><th>Total duty</th></tr></thead>'
-      + '<tbody>'+rows+'</tbody><tfoot><tr class="tot"><td colspan="2">Invoice total ('+ks.length+' items)</td><td class="num">'+fmt(t.a)+'</td><td></td><td class="num">'+fmt(t.b)+'</td><td class="num">'+fmt(t.s)+'</td><td></td><td class="num">'+fmt(t.i)+'</td><td class="num">'+fmt(t.d)+'</td></tr></tfoot></table></div>';
+    const foot = '<tfoot><tr class="tot"><td colspan="2">Invoice total ('+ks.length+' items)</td><td class="num">'+fmt(t.a)+'</td><td></td><td class="num">'+fmt(t.b)
+      + '</td><td class="num">'+fmt(t.s)+'</td><td></td><td class="num">'+fmt(t.i)+'</td><td class="num">'+fmt(t.d)+'</td></tr></tfoot>';
+    main.innerHTML = h + hint + tbl(["Item","CTH","Assess value","BCD rate","BCD","SWS","IGST rate","IGST","Total duty"], rows, foot);
     return;
   }
 
-  if(state.part==="V"){
-    const c = doc.compliance;
-    const label = NAV.filter(function(p){ return p.part==="V"; })[0].sections.filter(function(x){ return x.s===state.section; })[0].l;
-    const head = crumb("V — Other compliances", label) + '<h2 class="title">'+label+'</h2>';
-    if(!c){
-      main.innerHTML = head + '<div class="note">Part V was not extracted for this bill. Upload the PDF again to read it.</div>'; return;
-    }
-    const list = function(a){ return (a && a.length) ? a.join("<br>") : null; };
-    let body = "";
-    if(state.section==="A"){
-      body = row("A","Examination order (RMS)",c.examOrder,"exam_order")
-        + row("B","Examination instructions",list(c.examInstructions),"exam_instructions")
-        + row("B1","PGA examination instructions",list((c.pgaInstructions||[]).map(function(g){
-            return "Inv "+(g.inv||"–")+" &middot; Item "+(g.item||"–")+" &middot; "+(g.agency||"–")+" &middot; "+(g.status||"–"); })),"pga_instructions");
-    } else if(state.section==="B"){
-      body = row("C","Compulsory compliance",list(c.compliances),"compliances")
-        + row("D","AC remarks",list(c.acRemarks),"ac_remarks")
-        + row("E","Examination report",list(c.examReport),"exam_report")
-        + row("F","Superintendent comments",list(c.superintendentComments),"superintendent_comments");
-    } else {
-      body = row("","OOC no.",c.oocNo,"ooc_no") + row("","OOC date",c.oocDate,"ooc_date");
-    }
-    main.innerHTML = head + '<div class="sheet">'+body+'</div>';
-    return;
-  }
-
-  if(state.part==="IV"){
-    const add = (doc.additional||[]).filter(function(x){ return x.code===state.section; })[0];
-    if(add){
-      const tbl = '<div class="items-wrap"><table class="items"><thead><tr>'
-        + add.columns.map(function(c){ return '<th>'+c+'</th>'; }).join("") + '</tr></thead><tbody>'
-        + add.rows.map(function(r){ return '<tr>' + r.map(function(c){
-            return '<td>' + ((c===null||c==="") ? '<span class="empty">&mdash;</span>' : c) + '</td>'; }).join("") + '</tr>'; }).join("")
-        + '</tbody></table></div>';
-      main.innerHTML = crumb("IV — Additional details", add.code+". "+add.title)
-        + '<h2 class="title">'+add.title+'</h2>'
-        + '<div class="note" style="margin:6px 0 12px">'+add.rows.length+' row'+(add.rows.length===1?'':'s')+' declared</div>' + tbl;
+  /* ---------------- Part IV ---------------- */
+  if(P==="IV"){
+    const ai = (doc.additional||[]).map(function(x){ return x.code; }).indexOf(S);
+    if(ai>=0){
+      const add = doc.additional[ai];
+      const rows = add.rows.map(function(r,ri){
+        return '<tr>'+r.map(function(c,ci){ return ecell("additional."+ai+".rows."+ri+"."+ci, c); }).join("")+'</tr>';
+      }).join("");
+      main.innerHTML = head("IV — Additional details", add.title, add.title)
+        + '<div class="note" style="margin:6px 0 12px">'+add.rows.length+' row'+(add.rows.length===1?'':'s')+' declared. Click a cell to edit it.</div>'
+        + tbl(add.columns, rows);
       return;
     }
     const sd = doc.supportingDocs || [];
-    const body = sd.length ? sd.map(function(d){
-      const scope = d.inv===0 ? "BOE level" : (d.item===0 ? "Invoice "+d.inv : "Invoice "+d.inv+" &middot; item "+d.item);
-      const bits = [d.docType ? "Type "+d.docType : null, scope, d.icegate, d.place, d.date, d.expiry ? "expires "+d.expiry : null].filter(Boolean);
-      return row(d.type,"IRN "+d.irn, bits.join(" &middot; "), "doc_type_code / irn");
-    }).join("") : row("","Supporting documents","<span class='empty'>none declared</span>","");
-    main.innerHTML = crumb("IV — Additional details","Supporting documents")
-      + '<h2 class="title">Supporting documents</h2>'
-      + '<div class="sheet">'+body+'</div>'
-      + '<div class="note">Rows scoped to "Invoice N" (item = 0) are the case that needed the schema fix — a document attached to one invoice as a whole, not the whole BOE or a single item.</div>';
+    const rows = sd.map(function(d,i){
+      const b = "supportingDocs."+i;
+      return '<tr>'+ecell(b+".type",d.type,"cth")+ecell(b+".docType",d.docType)+ecell(b+".irn",d.irn)+ecell(b+".icegate",d.icegate)
+        + ecell(b+".inv",d.inv,"num")+ecell(b+".item",d.item,"num")+ecell(b+".place",d.place)+ecell(b+".date",d.date)+ecell(b+".expiry",d.expiry)+'</tr>';
+    }).join("");
+    main.innerHTML = head("IV — Additional details", "Supporting documents", "Supporting documents")
+      + (sd.length
+          ? '<div class="note" style="margin:6px 0 12px">Click a cell to edit it. Invoice / item 0 means the document applies to the whole bill (invoice 0) or the whole invoice (item 0).</div>'
+            + tbl(["Doc code","Type","IRN","ICEGATE id","Invoice","Item","Place","Issued","Expires"], rows)
+          : none("None declared."));
     return;
   }
 
-  if(state.part==="VI"){
-    if(state.section==="A"){
-      const body = doc.declarations.map(function(d){ return row(d.for,"Declaration "+d.for, d.text || TXT[d.key], "declaration_for / declaration_text"); }).join("");
-      main.innerHTML = crumb("VI — Declaration","Declaration statements")
-        + '<h2 class="title">Declaration statements</h2><div class="sheet">'+body+'</div>';
+  /* ---------------- Part V ---------------- */
+  if(P==="V"){
+    const label = NAV.filter(function(p){ return p.part==="V"; })[0].sections.filter(function(x){ return x.s===S; })[0].l;
+    const h = head("V — Other compliances", label, label);
+    const c = doc.compliance;
+    if(!c){ main.innerHTML = h + none("Part V was not extracted for this bill. Upload the PDF again to read it."); return; }
+    const list = function(no, lab, arr, key){
+      if(!arr || !arr.length) return row(no, lab, null);
+      return arr.map(function(_, i){ return Fld(i===0?no:"", i===0?lab:"", "compliance."+key+"."+i, {multi:true}); }).join("");
+    };
+    let body = "";
+    if(S==="A"){
+      body = Fld("A","Examination order (RMS)","compliance.examOrder",{multi:true}) + list("B","Examination instructions",c.examInstructions,"examInstructions");
+      const pga = c.pgaInstructions || [];
+      main.innerHTML = h + hint + sheet(body)
+        + '<h3 class="subtitle">PGA examination instructions</h3>'
+        + (pga.length ? tbl(["Invoice","Item","Agency","Status"], pga.map(function(g,i){
+            const b = "compliance.pgaInstructions."+i;
+            return '<tr>'+ecell(b+".inv",g.inv)+ecell(b+".item",g.item)+ecell(b+".agency",g.agency)+ecell(b+".status",g.status)+'</tr>';
+          }).join("")) : none("None declared."));
+      return;
+    } else if(S==="B"){
+      body = list("C","Compulsory compliance",c.compliances,"compliances") + list("D","AC remarks",c.acRemarks,"acRemarks")
+        + list("E","Examination report",c.examReport,"examReport") + list("F","Superintendent comments",c.superintendentComments,"superintendentComments");
     } else {
-      const s = doc.signatory;
-      main.innerHTML = crumb("VI — Declaration","Authorized signatory")
-        + '<h2 class="title">Authorized signatory</h2>'
-        + '<div class="sheet">'+row("","CHA name",s.chaName,"cha_name")+row("","Date",s.date,"signed_date")+row("","Place",s.place,"signed_place")+'</div>';
+      body = sheetRows([["","OOC no.","compliance.oocNo"],["","OOC date","compliance.oocDate"]]);
+    }
+    main.innerHTML = h + hint + sheet(body);
+    return;
+  }
+
+  /* ---------------- Part VI ---------------- */
+  if(P==="VI"){
+    if(S==="A"){
+      main.innerHTML = head("VI — Declaration", "Declaration statements", "Declaration statements") + hint
+        + sheet((doc.declarations||[]).map(function(d,i){ return Fld(d["for"], "Declaration "+d["for"], "declarations."+i+".text", {multi:true}); }).join(""));
+    } else {
+      main.innerHTML = head("VI — Declaration", "Authorized signatory", "Authorized signatory") + hint
+        + sheet(sheetRows([["","CHA name","signatory.chaName"],["","Date","signatory.date"],["","Place","signatory.place"]]));
     }
     return;
   }
 }
+function invDot(i){
+  const n = (LOWMAP["II|*|"+i]||0) + (LOWMAP["III|*|"+i]||0);
+  return n ? '<span class="navdot sm" title="'+n+' low-confidence field'+(n===1?'':'s')+'">'+n+'</span>' : '';
+}
+function head(c1, c2, title){ return crumb(c1, c2) + '<h2 class="title">'+title+'</h2>'; }
+
 
 /* ============================================================
    ROOT RENDER
@@ -906,9 +1281,13 @@ function render(){
     + '<div class="current-bill"><div class="cb-no">'+doc.boe.beNo+'</div><div class="cb-port">'+doc.boe.portCode+' &middot; '+doc.boe.beDate+'</div></div>'
     + '<nav id="navTree"></nav>'
     + '</aside><main id="main"></main></div>';
+  ACTIVE = null;
+  computeLow(doc);
   renderNav();
   renderMain();
-  if(doc.quality){ document.getElementById("main").insertAdjacentHTML("afterbegin", qualityHTML(doc)); }
+  const mainEl = document.getElementById("main");
+  mainEl.insertAdjacentHTML("afterbegin", reviewBarHTML(doc));
+  if(doc.quality){ mainEl.insertAdjacentHTML("afterbegin", qualityHTML(doc)); }
 }
 
 /* ============================================================
@@ -1175,14 +1554,6 @@ async function deleteBill(key){
   render();
 }
 
-function dutyHTML(d){
-  return '<div class="item-detail" style="margin-top:12px"><div class="hd">Part III &middot; item duty</div>'
-    + row("","Assessable value",fmt(d.assessValue),"assess_value")
-    + row("1","BCD rate / amount",(d.bcdRate===null?"":d.bcdRate+"% / ")+(fmt(d.bcdAmount)||""),"bcd")
-    + row("3","SWS amount",fmt(d.swsAmount),"sws")
-    + row("5","IGST rate / amount",(d.igstRate===null?"":d.igstRate+"% / ")+(fmt(d.igstAmount)||""),"igst")
-    + row("","Total duty",fmt(d.totalDuty),"total_duty") + '</div>';
-}
 function qualityHTML(doc){
   const q=doc.quality; if(!q) return "";
   const bad=q.needsReview>0 || q.failedChecks>0;
@@ -1209,6 +1580,7 @@ async function initApi(){
     if(state.page==="list") render(); else refreshUploadCard();
   }catch(e){ /* opened as a plain file: upload disabled */ }
 }
+initDocs();
 render();
 initApi();
 </script>

@@ -36,14 +36,17 @@ EXTRA_PROMPTS = {
                            "Events: list every row of H. PROCESSING DETAILS that has a date.",
     "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract sections A (invoice no/date), "
                                  "B (transacting parties) and C (valuation). Join multi-line addresses with ', '.",
-    "part4": core.COMMON + "This is Part IV (additional details). One list entry per printed DATA row; the printed "
-                           "column headers and the glossary are not data. Extract: (1) M. SUPPORTING DOCUMENTS into "
-                           "supporting_docs, (2) N. CONTAINER DETAILS into containers, and (3) for sections A-L ONLY "
-                           "those with at least one data row, a section entry with its letter and one 'cells' list per "
-                           "row, with cells in EXACTLY this column order (null for a blank cell):\n"
-                           + "\n".join(f"  {k}. {t}: " + ", ".join(cols) for k, (t, cols) in PART4_SECTIONS.items())
-                           + "\nSkip section O (invoice list). Read each row's cells from the image so values stay in "
-                             "the right column.",
+    "part4": core.COMMON + "This is a Part IV (additional details) page. Section LETTERS differ between form versions, so "
+                           "identify each section by its printed TITLE. One list entry per printed DATA row; printed "
+                           "column headers and the glossary are not data. Extract: (1) the SUPPORTING DOCUMENTS section "
+                           "(printed 'L.' or 'M.') into supporting_docs, (2) the CONTAINER DETAILS section (printed 'M.' "
+                           "or 'N.') into containers, and (3) for the sections below, ONLY those with at least one data "
+                           "row, a section entry whose code is the key shown, with one 'cells' list per row, cells in "
+                           "EXACTLY this column order (null for a blank cell):\n"
+                           + "\n".join(f"  {k} (title: {t}): " + ", ".join(cols) for k, (t, cols) in PART4_SECTIONS.items())
+                           + "\nSkip the INVOICE DETAILS section (invoice list). Read each row's cells from the image so "
+                             "values stay in the right column. A page may contain only some sections or only the "
+                             "headings with no rows: then return empty lists.",
     "part5": core.COMMON + "This is Part V (other compliances). Extract each section A-F and OOC No/Date only if it "
                            "has printed content; leave lists empty and values null for blank sections. One list entry "
                            "per printed line or row. Do not copy the printed section headings or glossary as content.",
@@ -91,7 +94,7 @@ def classify_all(text: str) -> list[str]:
         kinds.append("part1")
     if core_kind == "invoice" and "BUYER'S NAME" in t:
         kinds.append("inv_details")
-    if "PART - IV - ADDITIONAL DETAILS" in t and ("M. SUPPORTING DOCUMENTS" in t or "N. CONTAINER DETAILS" in t):
+    if "PART - IV - ADDITIONAL DETAILS" in t:      # any Part IV page: section letters vary by form version
         kinds.append("part4")
     if "PART - V - OTHER COMPLIANCES" in t:
         kinds.append("part5")
@@ -196,4 +199,4 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
         "checks": [{"check": i.check, "message": i.message} for i in issues[:60]],
     }
     print(meter.summary_line(), flush=True)
-    return build_doc(ex, extras, quality, filename)
+    return build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages))

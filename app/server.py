@@ -48,6 +48,74 @@ def save_doc(doc: dict) -> str:
     return doc_id
 
 
+EDIT_DENY_TOP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt"}
+KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _locate(doc: dict, path: str):
+    """Walk a dotted path to (container, key). Only existing data may be changed (a missing dict key may be created)."""
+    toks = path.split(".")
+    if not path or toks[0] in EDIT_DENY_TOP or any(not t for t in toks):
+        raise ValueError("That field cannot be edited.")
+    o = doc
+    for k in toks[:-1]:
+        o = o[int(k)] if isinstance(o, list) else o[k]
+    last = toks[-1]
+    if isinstance(o, list):
+        key = int(last)
+        if not 0 <= key < len(o):
+            raise ValueError("No such row.")
+        return o, key
+    if isinstance(o, dict):
+        if not KEY_RE.match(last):
+            raise ValueError("Bad field name.")
+        return o, last
+    raise ValueError("That field cannot be edited.")
+
+
+def apply_edit(doc_id: str, path: str, value, revert: bool) -> dict:
+    fp = os.path.join(UPLOADS, doc_id + ".json")
+    with LOCK:
+        doc = json.load(open(fp, encoding="utf-8"))
+        try:
+            box, key = _locate(doc, path)
+        except (KeyError, IndexError, ValueError, TypeError) as e:
+            raise ValueError(str(e) or "That field cannot be edited.")
+        edits, conf = doc.setdefault("edits", {}), doc.setdefault("conf", {})
+        current = box[key] if (isinstance(box, list) or key in box) else None
+        if isinstance(current, (dict, list)):
+            raise ValueError("That field cannot be edited.")
+        if revert:
+            rec = edits.pop(path, None)
+            if rec is None:
+                raise ValueError("Nothing to revert.")
+            box[key] = rec["orig"]
+            if rec.get("origConf") is None:
+                conf.pop(path, None)
+            else:
+                conf[path] = rec["origConf"]
+        else:
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (str, int, float))):
+                raise ValueError("Value must be text or a number.")
+            if isinstance(value, str) and len(value) > 5000:
+                raise ValueError("Value is too long.")
+            rec = edits.get(path) or {"orig": current, "origConf": conf.get(path)}
+            box[key] = value
+            if value == rec["orig"]:                       # edited back to the extracted value
+                edits.pop(path, None)
+                if rec.get("origConf") is None:
+                    conf.pop(path, None)
+                else:
+                    conf[path] = rec["origConf"]
+            else:
+                rec["at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                edits[path] = rec
+                conf[path] = {"s": 1.0, "b": "edited", "r": []}
+        with open(fp, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False)
+        return {"ok": True, "conf": conf.get(path), "edit": edits.get(path)}
+
+
 def list_docs() -> list[dict]:
     out = []
     if os.path.isdir(UPLOADS):
@@ -134,6 +202,21 @@ class Handler(BaseHTTPRequestHandler):
             if not self.origin_ok():
                 return self.send_json({"error": "bad origin"}, 403)
             return self.send_json(svc.check_key(self.headers.get("X-Gemini-Key", "").strip()))
+        m = re.match(r"^/api/docs/([0-9a-f]{12})/edit$", path)
+        if m:
+            if not self.origin_ok():
+                return self.send_json({"error": "bad origin"}, 403)
+            length = int(self.headers.get("Content-Length") or 0)
+            if length <= 0 or length > 200_000:
+                return self.send_json({"error": "bad size"}, 413)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                result = apply_edit(m.group(1), str(body.get("path", "")), body.get("value"), bool(body.get("revert")))
+            except FileNotFoundError:
+                return self.send_json({"error": "Unknown bill."}, 404)
+            except (ValueError, json.JSONDecodeError) as e:
+                return self.send_json({"error": str(e)[:200]}, 400)
+            return self.send_json(result)
         if path == "/api/report":
             if not self.origin_ok():
                 return self.send_json({"error": "bad origin"}, 403)
