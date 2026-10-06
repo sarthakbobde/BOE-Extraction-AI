@@ -127,6 +127,11 @@ Defaults are set in `app/extract_service.py` and can be overridden with environm
 
 Prices used for the cost lines are in `app/cost.py`; update them if Google changes pricing.
 
+## Documentation
+
+- [`docs/01-technical-overview.md`](docs/01-technical-overview.md) - architecture, data flow, API, front end, storage, how to extend.
+- [`docs/02-how-the-ai-decides.md`](docs/02-how-the-ai-decides.md) - how pages are read, checked and scored, and what a score means.
+
 ## What is extracted (every printed field)
 
 The viewer mirrors the PDF section by section, in the PDF's order and with its printed letters (Part IV letters are read
