@@ -127,6 +127,24 @@ Defaults are set in `app/extract_service.py` and can be overridden with environm
 
 Prices used for the cost lines are in `app/cost.py`; update them if Google changes pricing.
 
+## What is extracted (every printed field)
+
+The viewer mirrors the PDF section by section, in the PDF's order and with its printed letters (Part IV letters are read
+from each PDF because they differ between form versions):
+
+- **Part I:** A Status (1-16), B Declarant (incl. AEO, UCR), C Duty summary (1-19), D Manifest (IGM, INW, GIGM, MAWB, HAWB),
+  E Bond details, F Payment, G Warehouse, H Processing, I Invoice summary, J Containers.
+- **Part II:** A Invoice (incl. PO / LC / contract / AD code), B Parties (incl. AEO), C Valuation (both currencies),
+  D Cost & services (1-14), E Items.
+- **Part III:** per item, A Item details (fields 1-30), B Item duty, C Other duties, C-A Other duties - A (each a matrix of
+  duty columns x Notn No., Notn SNo., Rate, Amount, Duty Fg).
+- **Part IV:** every section the form prints (A-L, supporting documents, containers, invoice details).
+- **Part V / VI:** examination order (A and A1), instructions, PGA, compliance, remarks, OOC; declarations and signatory.
+
+Bills extracted before this schema (no `schema: 2` in their JSON) show a "partial" / "not extracted" tag on the
+sections that were not read; upload them again to get every field. The full list of fields per section is in
+`files1/boe_schema.sql` (database) and `files2/schemas.py` (extraction).
+
 ## How the data is rechecked
 
 1. **Strict prompts** - copy values exactly as printed; never compute, round or convert. Temperature 0.

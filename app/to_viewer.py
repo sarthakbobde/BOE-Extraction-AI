@@ -65,15 +65,26 @@ def rate_text(x):
 _TOK = re.compile(r"[^.\[\]]+|\[\d+\]")
 SUMMARY_MAP = {"port_code": "boe.portCode", "be_no": "boe.beNo", "be_date": "boe.beDate", "total_invoices": "boe.totalInvoices",
                "total_items": "boe.totalItems", "bcd": "dutySummary.bcd", "sws": "dutySummary.sws", "igst": "dutySummary.igst",
+               "acd": "dutySummary.acd", "nccd": "dutySummary.nccd", "add": "dutySummary.add", "cvd": "dutySummary.cvd",
+               "g_cess": "dutySummary.gCess", "sg": "dutySummary.sg", "saed": "dutySummary.saed", "gsia": "dutySummary.gsia",
+               "tta": "dutySummary.tta", "health": "dutySummary.health", "interest": "dutySummary.interest",
+               "penalty": "dutySummary.penalty", "fine": "dutySummary.fine",
                "total_assessable_value": "dutySummary.totalAssessableValue", "total_duty": "dutySummary.totalDuty",
                "total_amount": "dutySummary.totalAmount", "challan_amount": "payments.0.amount"}
 SUMMARY_INV_MAP = {"invoice_no": "no", "amount": "amount", "currency": "currency"}
 HEADER_MAP = {"inv_value": "valuation.invoiceValue", "freight": "valuation.freight", "insurance": "valuation.insurance",
               "invoice_currency": "valuation.currency", "incoterm": "valuation.incoterm", "misc_charge": "cost.miscCharge",
-              "assessable_value": "cost.assessValue"}
+              "assessable_value": "cost.assessValue", "c_and_b": "cost.cb", "coc": "cost.coc", "cop": "cost.cop",
+              "hnd_chg": "cost.hndChg", "g_and_s": "cost.gs", "doc_ch": "cost.docCh", "coo": "cost.coo", "r_and_lf": "cost.rlf",
+              "oth_cost": "cost.othCost", "ld_uld": "cost.ldUld", "ws": "cost.ws", "otc": "cost.otc"}
 ITEM_MAP = {"cth": 1, "description": 2, "unit_price": 3, "quantity": 4, "uqc": 5, "amount": 6}
-DUTY_MAP = {"cth": "cth", "assess_value": "assessValue", "total_duty": "totalDuty", "bcd_rate": "bcdRate",
-            "bcd_amount": "bcdAmount", "sws_amount": "swsAmount", "igst_rate": "igstRate", "igst_amount": "igstAmount"}
+DUTY_MAP = {"cth": "cth", "assess_value": "assessValue", "total_duty": "totalDuty", "ceth": "ceth", "description": "description",
+            "fs": "fs", "pq": "pq", "dc": "dc", "wc": "wc", "aq": "aq", "upi": "upi", "coo": "coo", "c_qty": "cQty", "c_uqc": "cUqc",
+            "s_qty": "sQty", "s_uqc": "sUqc", "sch": "sch", "stnd_pr": "stndPr", "rsp": "rsp", "reimp": "reimp", "prov": "prov",
+            "end_use": "endUse", "prodn": "prodn", "cntrl": "cntrl", "qualfr": "qualfr", "contnt": "contnt", "stmnt": "stmnt",
+            "sup_docs": "supDocs"}
+CELL_ROWS = {"notn_no": "NotnNo", "notn_sno": "NotnSno", "rate": "Rate", "amount": "Amount", "duty_fg": "DutyFg"}
+DUTY_GROUPS = ("item_duty", "other_duties", "other_duties_a")
 
 
 def _toks(path: str) -> list[str]:
@@ -113,11 +124,17 @@ def map_pipeline_rows(rows, ex, inv_idx, item_idx) -> dict:
                 elif t[2] == "items" and len(t) >= 5 and t[4] in ITEM_MAP:
                     jj, n = item_idx[id(page.items[int(t[3])])]
                     put(f"invoices.{jj}.items.{n}.{ITEM_MAP[t[4]]}", row)
-            elif t[0] == "duty_items" and len(t) >= 3 and t[2] in DUTY_MAP:
+            elif t[0] == "duty_items" and len(t) >= 3:
                 it = ex.duty_items[int(t[1])]
                 j = inv_idx.get(v(it.invsno))
-                if j is not None:
-                    put(f"invoices.{j}.duties.{v(it.itemsn)}.{DUTY_MAP[t[2]]}", row)
+                if j is None:
+                    continue
+                base = f"invoices.{j}.duties.{v(it.itemsn)}"
+                if t[2] in DUTY_MAP:
+                    put(f"{base}.{DUTY_MAP[t[2]]}", row)
+                elif t[2] in DUTY_GROUPS and len(t) >= 5 and t[4] in CELL_ROWS:
+                    cell = getattr(it, t[2])[int(t[3])]
+                    put(f"{base}.{cell.code.lower()}{CELL_ROWS[t[4]]}", row)
         except (IndexError, KeyError, ValueError):
             continue
     return out
@@ -152,10 +169,18 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
     summary_inv = {v(i.sno): i for i in s.invoices}
     duties = {}
     for it in ex.duty_items:
-        duties.setdefault(v(it.invsno), {})[v(it.itemsn)] = {
-            "cth": v(it.cth), "assessValue": num(it.assess_value), "totalDuty": num(it.total_duty),
-            "bcdRate": num(it.bcd_rate), "bcdAmount": num(it.bcd_amount), "swsAmount": num(it.sws_amount),
-            "igstRate": num(it.igst_rate), "igstAmount": num(it.igst_amount)}
+        row = {"cth": v(it.cth), "ceth": v(it.ceth), "description": v(it.description), "fs": v(it.fs), "pq": v(it.pq),
+               "dc": v(it.dc), "wc": v(it.wc), "aq": v(it.aq), "upi": num(it.upi), "coo": v(it.coo), "cQty": num(it.c_qty),
+               "cUqc": v(it.c_uqc), "sQty": num(it.s_qty), "sUqc": v(it.s_uqc), "sch": v(it.sch), "stndPr": v(it.stnd_pr),
+               "rsp": v(it.rsp), "reimp": v(it.reimp), "prov": v(it.prov), "endUse": v(it.end_use), "prodn": v(it.prodn),
+               "cntrl": v(it.cntrl), "qualfr": v(it.qualfr), "contnt": v(it.contnt), "stmnt": v(it.stmnt),
+               "supDocs": v(it.sup_docs), "assessValue": num(it.assess_value), "totalDuty": num(it.total_duty)}
+        for group in DUTY_GROUPS:                                   # one flat key per matrix cell
+            for c in getattr(it, group):
+                k = c.code.lower()
+                row.update({k + "NotnNo": v(c.notn_no), k + "NotnSno": v(c.notn_sno), k + "Rate": num(c.rate),
+                            k + "Amount": num(c.amount), k + "DutyFg": num(c.duty_fg)})
+        duties.setdefault(v(it.invsno), {})[v(it.itemsn)] = row
 
     grouped: dict[str, list] = {}
     for pg in ex.invoice_pages:
@@ -186,7 +211,12 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
             "date": date(det.invoice_date) if det else None,
             "amount": num(si.amount) if si else (num(h.inv_value) if h else None),
             "currency": v(si.currency) if si else (v(h.invoice_currency) if h else None),
-            "parties": {"buyer": v(det.buyer) if det else None, "seller": v(det.seller) if det else None,
+            "poNo": v(det.purchase_order_no) if det else None, "poDate": date(det.purchase_order_date) if det else None,
+            "lcNo": v(det.lc_no) if det else None, "lcDate": date(det.lc_date) if det else None,
+            "contractNo": v(det.contract_no) if det else None, "contractDate": date(det.contract_date) if det else None,
+            "adCode": v(det.ad_code) if det else None,
+            "parties": {"aeo": v(det.aeo) if det else None,
+                        "buyer": v(det.buyer) if det else None, "seller": v(det.seller) if det else None,
                         "supplier": v(det.supplier) if det else None, "thirdParty": v(det.third_party) if det else None},
             "valuation": {
                 "invoiceValue": num(h.inv_value) if h else None, "freight": num(h.freight) if h else None,
@@ -194,11 +224,16 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
                 "loading": v(det.loading) if det else None, "commission": v(det.commission) if det else None,
                 "payTerms": v(det.pay_terms) if det else None,
                 "valuationMethod": v(det.valuation_method) if det else None,
-                "currency": v(h.invoice_currency) if h else None,
+                "currency": v(h.invoice_currency) if h else None, "freightCurrency": v(h.freight_currency) if h else None,
                 "relatedParty": v(det.related_party) if det else None, "svbCh": v(det.svb_ch) if det else None,
                 "svbNo": v(det.svb_no) if det else None, "svbDate": date(det.svb_date) if det else None,
                 "loa": v(det.loa) if det else None, "incoterm": v(h.incoterm) if h else None},
-            "cost": {"miscCharge": num(h.misc_charge) if h else None, "assessValue": num(h.assessable_value) if h else None},
+            "cost": {"cb": num(h.c_and_b) if h else None, "coc": num(h.coc) if h else None, "cop": num(h.cop) if h else None,
+                     "hndChg": num(h.hnd_chg) if h else None, "gs": num(h.g_and_s) if h else None,
+                     "docCh": num(h.doc_ch) if h else None, "coo": num(h.coo) if h else None, "rlf": num(h.r_and_lf) if h else None,
+                     "othCost": num(h.oth_cost) if h else None, "ldUld": num(h.ld_uld) if h else None,
+                     "ws": num(h.ws) if h else None, "otc": num(h.otc) if h else None,
+                     "miscCharge": num(h.misc_charge) if h else None, "assessValue": num(h.assessable_value) if h else None},
             "items": [[integer(it.sno), v(it.cth), v(it.description), num(it.unit_price), num(it.quantity),
                        v(it.uqc), num(it.amount)] for it in items],
             "duties": duties.get(sno, {}),
@@ -231,18 +266,20 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
                 cells += [None] * (width - len(cells))
                 if any(cells):
                     merged.setdefault(code, []).append(cells)
+    order = list(PART4_SECTIONS)                    # dict order = the order the sections are printed in the PDF
     additional = [{"code": c, "title": PART4_SECTIONS[c][0], "columns": PART4_SECTIONS[c][1], "rows": merged[c]}
-                  for c in sorted(merged)]
+                  for c in sorted(merged, key=order.index)]
 
     def lines(xs):
         return [t for t in (re.sub(r"\s+", " ", x).strip() for x in xs) if t]
 
     compliance = None
     if extras.get("part5"):
-        compliance = {"examOrder": None, "examInstructions": [], "pgaInstructions": [], "compliances": [],
+        compliance = {"examOrder": None, "examOrderA1": None, "examInstructions": [], "pgaInstructions": [], "compliances": [],
                       "acRemarks": [], "examReport": [], "superintendentComments": [], "oocNo": None, "oocDate": None}
         for _, p5 in extras["part5"]:
             compliance["examOrder"] = compliance["examOrder"] or v(p5.exam_order)
+            compliance["examOrderA1"] = compliance["examOrderA1"] or v(p5.exam_order_a1)
             compliance["examInstructions"] += lines(p5.exam_instructions)
             compliance["pgaInstructions"] += [{"inv": v(g.inv_no), "item": v(g.item_no), "agency": v(g.agency),
                                                "status": v(g.status)} for g in p5.pga_instructions]
@@ -289,21 +326,33 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
         "status": {"beStatus": v(st.be_status) if st else None, "mode": v(st.mode) if st else None,
                    "assess": v(st.assess) if st else None, "exam": v(st.exam) if st else None,
                    "hss": v(st.hss) if st else None, "firstCheck": v(st.first_check) if st else None,
-                   "provFinal": v(st.prov_final) if st else None,
+                   "provFinal": v(st.prov_final) if st else None, "defBe": v(st.def_be) if st else None,
+                   "kaccha": v(st.kaccha) if st else None, "sec48": v(st.sec_48) if st else None,
+                   "reimp": v(st.reimp) if st else None, "advBe": v(st.adv_be) if st else None,
                    "countryOfOrigin": v(st.country_of_origin) if st else None,
                    "countryOfConsignment": v(st.country_of_consignment) if st else None,
                    "portOfLoading": v(st.port_of_loading) if st else None,
                    "portOfShipment": v(st.port_of_shipment) if st else None},
         "declarant": {"importerName": v(dc.importer_name) if dc else None,
                       "importerAddress": v(dc.importer_address) if dc else None,
-                      "cbName": v(dc.cb_name) if dc else None, "adCode": v(dc.ad_code) if dc else None},
-        "dutySummary": {"bcd": num(s.bcd), "sws": num(s.sws), "igst": num(s.igst),
+                      "cbName": v(dc.cb_name) if dc else None, "adCode": v(dc.ad_code) if dc else None,
+                      "aeo": v(dc.aeo) if dc else None, "ucr": v(dc.ucr) if dc else None},
+        "dutySummary": {"bcd": num(s.bcd), "acd": num(s.acd), "sws": num(s.sws), "nccd": num(s.nccd), "add": num(s.add),
+                        "cvd": num(s.cvd), "igst": num(s.igst), "gCess": num(s.g_cess), "sg": num(s.sg), "saed": num(s.saed),
+                        "gsia": num(s.gsia), "tta": num(s.tta), "health": num(s.health), "interest": num(s.interest),
+                        "penalty": num(s.penalty), "fine": num(s.fine),
                         "totalAssessableValue": num(s.total_assessable_value), "totalDuty": num(s.total_duty),
                         "totalAmount": num(s.total_amount)},
-        "manifest": {"mawbNo": v(mf.mawb_no) if mf else None, "mawbDate": date(mf.mawb_date) if mf else None,
+        "manifest": {"igmNo": v(mf.igm_no) if mf else None, "igmDate": date(mf.igm_date) if mf else None,
+                     "inwDate": date(mf.inw_date) if mf else None, "gigmNo": v(mf.gigm_no) if mf else None,
+                     "gigmDate": date(mf.gigm_date) if mf else None, "mawbNo": v(mf.mawb_no) if mf else None, "mawbDate": date(mf.mawb_date) if mf else None,
                      "hawbNo": v(mf.hawb_no) if mf else None, "hawbDate": date(mf.hawb_date) if mf else None,
                      "packages": integer(mf.packages) if mf else None,
                      "grossWeightKg": v(mf.gross_weight) if mf else None},
+        "bonds": [{"bondNo": v(b.bond_no), "port": v(b.port), "bondCd": v(b.bond_cd), "debtAmt": num(b.debt_amt),
+                   "bgAmt": num(b.bg_amt)} for b in p1.bonds if any([b.bond_no, b.port, b.bond_cd, b.debt_amt, b.bg_amt])] if p1 else [],
+        "warehouse": [{"wbeNo": v(w.wbe_no), "date": date(w.date), "site": v(w.site), "whCode": v(w.wh_code)}
+                      for w in p1.warehouse if any([w.wbe_no, w.date, w.site, w.wh_code])] if p1 else [],
         "payments": [{"srNo": integer(p.sr_no) or i + 1, "challanNo": v(p.challan_no), "paidOn": date(p.paid_on),
                       "amount": num(p.amount)} for i, p in enumerate(p1.payments)] if p1 else [],
         "events": [{"event": v(e.event), "date": date(e.date), "time": v(e.time), "rate": rate_text(e.exchange_rate)}
@@ -321,6 +370,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
     doc["conf"] = {k: c for k, c in conf.items() if resolves(doc, k)}
     doc["edits"] = {}
     doc["pageMap"] = page_map
+    doc["schema"] = 2                      # every printed field of Parts I-VI is read (older bills lack "schema")
     if page_count:
         doc["pageCount"] = page_count
     return doc

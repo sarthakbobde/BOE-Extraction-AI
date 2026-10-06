@@ -334,6 +334,23 @@ h3.subtitle{ font-size:15px; margin:20px 0 8px; color:var(--blue-deep); }
 .pdf-page img{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 .pdf-page .hl{ position:absolute; inset:0; pointer-events:none; }
 .pdf-page .pn{ position:absolute; top:6px; right:8px; font:600 11px var(--mono); color:var(--ink-soft); background:rgba(255,255,255,.85); padding:1px 7px; border-radius:10px; pointer-events:none; }
+
+/* ---------- section catalog: tags + notes ---------- */
+.sec-btn.none{ color:var(--ink-soft); font-style:italic; }
+.sec-btn.none.active{ color:#fff; }
+.tag{ display:inline-block; margin-left:6px; padding:0 6px; border-radius:8px; font-size:10px; font-weight:600; font-style:normal; line-height:16px; vertical-align:1px; }
+.tag.p{ background:#FFE9B8; color:#8A5A00; }
+.tag.n{ background:#E6EAF0; color:#5C7089; }
+.tag.e{ background:#EDF3F9; color:#7C8EA6; font-weight:500; }
+.sec-btn.active .tag{ background:rgba(255,255,255,.22); color:#fff; }
+.missnote{ margin:8px 0 14px; padding:10px 14px; border-radius:8px; font-size:13px; line-height:1.5; border:1px solid var(--line); }
+.missnote.part{ background:#FFFAEB; border-color:#EBD79B; }
+.missnote.none{ background:#F1F4F8; border-color:#D5DDE8; }
+.missnote .fl{ color:var(--ink-soft); }
+
+/* ---------- Part III duty matrices ---------- */
+.itemhd{ margin:16px 0 6px; font-weight:650; font-size:13.5px; color:var(--blue-deep); }
+table.items th.rl{ background:var(--paper-2); font-weight:600; white-space:nowrap; text-align:left; }
 </style>
 
 <header class="topbar">
@@ -616,6 +633,9 @@ const BUILTIN_CONF = {"D1":{"boe.portCode":[1.0,"c"],"boe.beNo":[1.0,"c"],"boe.b
 /* Page map for the sample bills: which PDF page each section / item / duty row is on. */
 const BUILTIN_PAGES = {"D1":{"pageMap":{"I":[1],"II":{"0":[2,3]},"III":{"0":[4,5,6,7,8,9,10,11,12,13,14,15]},"IV":[16,17],"V":[18],"VI":[19],"rows":{"invoices.0.items.0":2,"invoices.0.items.1":2,"invoices.0.items.2":2,"invoices.0.items.3":2,"invoices.0.items.4":2,"invoices.0.items.5":2,"invoices.0.items.6":2,"invoices.0.items.7":2,"invoices.0.items.8":2,"invoices.0.items.9":2,"invoices.0.items.10":2,"invoices.0.items.11":2,"invoices.0.items.12":2,"invoices.0.items.13":2,"invoices.0.items.14":2,"invoices.0.items.15":2,"invoices.0.items.16":2,"invoices.0.items.17":3,"invoices.0.items.18":3,"invoices.0.items.19":3,"invoices.0.items.20":3,"invoices.0.items.21":3,"invoices.0.items.22":3,"invoices.0.items.23":3,"invoices.0.duties.1":4,"invoices.0.duties.2":4,"invoices.0.duties.3":5,"invoices.0.duties.4":5,"invoices.0.duties.5":6,"invoices.0.duties.6":6,"invoices.0.duties.7":7,"invoices.0.duties.8":7,"invoices.0.duties.9":8,"invoices.0.duties.10":8,"invoices.0.duties.11":9,"invoices.0.duties.12":9,"invoices.0.duties.13":10,"invoices.0.duties.14":10,"invoices.0.duties.15":11,"invoices.0.duties.16":11,"invoices.0.duties.17":12,"invoices.0.duties.18":12,"invoices.0.duties.19":13,"invoices.0.duties.20":13,"invoices.0.duties.21":14,"invoices.0.duties.22":14,"invoices.0.duties.23":15,"invoices.0.duties.24":15}},"pageCount":19},"D2":{"pageMap":{"I":[1],"II":{"0":[2,3],"1":[4,5],"2":[6,7,8]},"III":{"0":[9,10,11,12,13,14,15,16,17,18],"1":[19,20,21,22,23,24,25,26],"2":[27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43]},"IV":[44,45,46,47,48],"V":[49],"VI":[50,51],"rows":{"invoices.0.items.0":2,"invoices.0.items.1":2,"invoices.0.items.2":2,"invoices.0.items.3":2,"invoices.0.items.4":2,"invoices.0.items.5":2,"invoices.0.items.6":2,"invoices.0.items.7":2,"invoices.0.items.8":2,"invoices.0.items.9":2,"invoices.0.items.10":2,"invoices.0.items.11":2,"invoices.0.items.12":2,"invoices.0.items.13":2,"invoices.0.items.14":3,"invoices.0.items.15":3,"invoices.0.items.16":3,"invoices.0.items.17":3,"invoices.0.items.18":3,"invoices.0.items.19":3,"invoices.0.items.20":3,"invoices.0.items.21":3,"invoices.0.items.22":3,"invoices.0.items.23":3,"invoices.0.items.24":3,"invoices.0.items.25":3,"invoices.0.items.26":3,"invoices.0.items.27":3,"invoices.1.items.0":4,"invoices.1.items.1":4,"invoices.1.items.2":4,"invoices.1.items.3":4,"invoices.1.items.4":4,"invoices.1.items.5":4,"invoices.1.items.6":4,"invoices.1.items.7":4,"invoices.1.items.8":4,"invoices.1.items.9":4,"invoices.1.items.10":4,"invoices.1.items.11":4,"invoices.1.items.12":4,"invoices.1.items.13":4,"invoices.1.items.14":5,"invoices.1.items.15":5,"invoices.1.items.16":5,"invoices.1.items.17":5,"invoices.1.items.18":5,"invoices.1.items.19":5,"invoices.1.items.20":5,"invoices.1.items.21":5,"invoices.1.items.22":5,"invoices.1.items.23":5,"invoices.2.items.0":6,"invoices.2.items.1":6,"invoices.2.items.2":6,"invoices.2.items.3":6,"invoices.2.items.4":6,"invoices.2.items.5":6,"invoices.2.items.6":6,"invoices.2.items.7":6,"invoices.2.items.8":6,"invoices.2.items.9":6,"invoices.2.items.10":6,"invoices.2.items.11":6,"invoices.2.items.12":6,"invoices.2.items.13":6,"invoices.2.items.14":7,"invoices.2.items.15":7,"invoices.2.items.16":7,"invoices.2.items.17":7,"invoices.2.items.18":7,"invoices.2.items.19":7,"invoices.2.items.20":7,"invoices.2.items.21":7,"invoices.2.items.22":7,"invoices.2.items.23":7,"invoices.2.items.24":7,"invoices.2.items.25":7,"invoices.2.items.26":7,"invoices.2.items.27":7,"invoices.2.items.28":7,"invoices.2.items.29":7,"invoices.2.items.30":7,"invoices.2.items.31":7,"invoices.2.items.32":7,"invoices.2.items.33":7,"invoices.2.items.34":7,"invoices.2.items.35":7,"invoices.2.items.36":7,"invoices.2.items.37":7,"invoices.2.items.38":8,"invoices.2.items.39":8,"invoices.2.items.40":8,"invoices.2.items.41":8,"invoices.2.items.42":8,"invoices.2.items.43":8,"invoices.2.items.44":8,"invoices.2.items.45":8,"invoices.2.items.46":8,"invoices.2.items.47":8,"invoices.2.items.48":8,"invoices.0.duties.1":9,"invoices.0.duties.2":9,"invoices.0.duties.3":9,"invoices.0.duties.4":10,"invoices.0.duties.5":10,"invoices.0.duties.6":10,"invoices.0.duties.7":11,"invoices.0.duties.8":11,"invoices.0.duties.9":11,"invoices.0.duties.10":12,"invoices.0.duties.11":12,"invoices.0.duties.12":12,"invoices.0.duties.13":13,"invoices.0.duties.14":13,"invoices.0.duties.15":13,"invoices.0.duties.16":14,"invoices.0.duties.17":14,"invoices.0.duties.18":14,"invoices.0.duties.19":15,"invoices.0.duties.20":15,"invoices.0.duties.21":15,"invoices.0.duties.22":16,"invoices.0.duties.23":16,"invoices.0.duties.24":16,"invoices.0.duties.25":17,"invoices.0.duties.26":17,"invoices.0.duties.27":17,"invoices.0.duties.28":18,"invoices.1.duties.1":19,"invoices.1.duties.2":19,"invoices.1.duties.3":19,"invoices.1.duties.4":20,"invoices.1.duties.5":20,"invoices.1.duties.6":20,"invoices.1.duties.7":21,"invoices.1.duties.8":21,"invoices.1.duties.9":21,"invoices.1.duties.10":22,"invoices.1.duties.11":22,"invoices.1.duties.12":22,"invoices.1.duties.13":23,"invoices.1.duties.14":23,"invoices.1.duties.15":23,"invoices.1.duties.16":24,"invoices.1.duties.17":24,"invoices.1.duties.18":24,"invoices.1.duties.19":25,"invoices.1.duties.20":25,"invoices.1.duties.21":25,"invoices.1.duties.22":26,"invoices.1.duties.23":26,"invoices.1.duties.24":26,"invoices.2.duties.1":27,"invoices.2.duties.2":27,"invoices.2.duties.3":27,"invoices.2.duties.4":28,"invoices.2.duties.5":28,"invoices.2.duties.6":28,"invoices.2.duties.7":29,"invoices.2.duties.8":29,"invoices.2.duties.9":29,"invoices.2.duties.10":30,"invoices.2.duties.11":30,"invoices.2.duties.12":30,"invoices.2.duties.13":31,"invoices.2.duties.14":31,"invoices.2.duties.15":31,"invoices.2.duties.16":32,"invoices.2.duties.17":32,"invoices.2.duties.18":32,"invoices.2.duties.19":33,"invoices.2.duties.20":33,"invoices.2.duties.21":33,"invoices.2.duties.22":34,"invoices.2.duties.23":34,"invoices.2.duties.24":34,"invoices.2.duties.25":35,"invoices.2.duties.26":35,"invoices.2.duties.27":35,"invoices.2.duties.28":36,"invoices.2.duties.29":36,"invoices.2.duties.30":36,"invoices.2.duties.31":37,"invoices.2.duties.32":37,"invoices.2.duties.33":37,"invoices.2.duties.34":38,"invoices.2.duties.35":38,"invoices.2.duties.36":38,"invoices.2.duties.37":39,"invoices.2.duties.38":39,"invoices.2.duties.39":39,"invoices.2.duties.40":40,"invoices.2.duties.41":40,"invoices.2.duties.42":40,"invoices.2.duties.43":41,"invoices.2.duties.44":41,"invoices.2.duties.45":41,"invoices.2.duties.46":42,"invoices.2.duties.47":42,"invoices.2.duties.48":42,"invoices.2.duties.49":43}},"pageCount":51}};
 
+/* Printed Part IV letters of the sample bills (they differ between form versions). */
+const BUILTIN_LETTERS = {"D1":{"reimport":"C","manufacturer":"D","accessory":"E","licence":"F","containers":"N","supporting":"M","sw_control":"L","sw_constituents":"K","sw_declaration":"J","hss":"I","certificate":"H","svb":"A","previous_be":"B","scheme_notification":"G","invoices":"O"},"D2":{"reimport":"C","manufacturer":"D","accessory":"E","licence":"F","svb":"A","previous_be":"B","hss":"H","certificate":"G","sw_declaration":"I","sw_control":"K","sw_constituents":"J","containers":"M","supporting":"L","invoices":"N"}};
+
 const TXT = {
   A:"All conditions or restrictions, if any, imposed by the seller or any third party on the disposition or use of the imported goods are specified above.",
   B:"The price paid or payable by the importer is as per the details provided above; any price adjustment after the fact will be settled per the attached contract.",
@@ -760,10 +780,100 @@ function listPageHTML(){
 /* ============================================================
    PAGE 2 — DETAIL (rail + main)
    ============================================================ */
-function sectionsFor(p, doc){
-  if(p.part !== "IV") return p.sections;
-  return p.sections.concat((doc.additional||[]).map(function(x){ return { s:x.code, l:x.title }; }));
+/* ============================================================
+   SECTION CATALOG: every section the PDF prints, in PDF order, with its printed letter.
+   `miss` = fields printed in the section that the app does not read yet; `none` = the whole section is not read yet.
+   (Part IV letters differ between form versions, so they come from each bill's own PDF: doc.sectionLetters.)
+   ============================================================ */
+const CATALOG = {
+  I: [
+    { s:"HDR", l:"Header" },
+    { s:"A", L:"A", l:"Status", miss:["3. DEF BE","4. KACHA","5. SEC 48","6. REIMP","7. ADV BE"] },
+    { s:"B", L:"B", l:"Declarant", miss:["3. AEO","4. UCR"] },
+    { s:"C", L:"C", l:"Duty summary", miss:["2. ACD","4. NCCD","5. ADD","6. CVD","8. G.CESS","9. SG","10. SAED","11. GSIA","12. TTA","13. HEALTH","15. INT","16. PNLTY","17. FINE"] },
+    { s:"D", L:"D", l:"Manifest details", miss:["1. IGM NO","2. IGM DATE","3. INW DATE","4. GIGMNO","5. GIGMDT"] },
+    { s:"E", L:"E", l:"Bond details", none:["1. BOND NO","2. PORT","3. BOND CD","4. DEBT AMT","5. BG AMT"] },
+    { s:"F", L:"F", l:"Payment details" },
+    { s:"G", L:"G", l:"Warehouse details", none:["1. WBE NO","2. DATE","3. WBE SITE","4. WH CODE"] },
+    { s:"H", L:"H", l:"Processing details" },
+    { s:"I", L:"I", l:"Invoice details - summary" },
+    { s:"J", L:"J", l:"Container details" }
+  ],
+  II: [
+    { s:"A", L:"A", l:"Invoice", miss:["3. PURCHASE ORDER NO & DT","4. LC NO & DATE","5. CONTRACT NO & DATE","6. AD CODE"] },
+    { s:"B", L:"B", l:"Transacting parties", miss:["5. AEO"] },
+    { s:"C", L:"C", l:"Valuation", miss:["14. Cur - second value (freight currency)"] },
+    { s:"D", L:"D", l:"Cost & services", miss:["1. C&B","2. CoC","3. CoP","4. HND CHG","5. G&S","6. DOC CH","7. COO","8. R&LF","9. OTH COST","10. LD/ULD","11. WS","12. OTC"] },
+    { s:"E", L:"E", l:"Item details" }
+  ],
+  III: [
+    { s:"A", L:"A", l:"Item details", miss:["4. CETH","5. ITEM DESCRIPTION (shown in Part II)","6. FS","7. PQ","8. DC","9. WC","10. AQ","11. UPI","12. COO","13. C.QTY","14. C.UQC","15. S.QTY","16. S.UQC","17. SCH","18. STND/PR","19. RSP","20. REIMP","21. PROV","22. END USE","23. PRODN","24. CNTRL","25. QUALFR","26. CONTNT","27. STMNT","28. SUP DOCS"] },
+    { s:"B", L:"B", l:"Item duty", miss:["2. CVD_05","4. SAD","6. G.CESS","7. ADD","8. CVD","9. SG","10. T.VALUE","SWS rate","Notn No / Notn SNo / Duty Fg rows"] },
+    { s:"C", L:"C", l:"Other duties", none:["1. SP EXD","2. CHCESS","3. TTA","4. CESS","5. CAIDC","6. EAIDC","7. CUS EDC","8. CUS HEC","9. NCD","10. AGGR"] },
+    { s:"CA", L:"C-A", l:"Other duties - A", none:["1. OTHCUS","2. OTHCVD","3. PETR CUS","4. INFRA CES","5. CUS CVD"] }
+  ],
+  V: [
+    { s:"A", L:"A, B", l:"Examination", miss:["A1. EXAMINATION ORDER (kept together with A)"] },
+    { s:"B", L:"C-F", l:"Compliance & remarks" },
+    { s:"C", L:"", l:"Out of charge" }
+  ],
+  VI: [
+    { s:"A", L:"A", l:"Declaration statement" },
+    { s:"B", L:"B", l:"Authorized signatory" }
+  ]
+};
+const DUTY_COLS = {
+  B:  [["bcd","1.BCD"],["cvd05","2.CVD_05"],["sws","3.SWS"],["sad","4.SAD"],["igst","5.IGST"],["gcess","6.G.CESS"],["add","7.ADD"],["cvd","8.CVD"],["sg","9.SG"],["tvalue","10.T.VALUE"]],
+  C:  [["spexd","1.SP EXD"],["chcess","2.CHCESS"],["tta","3.TTA"],["cess","4.CESS"],["caidc","5.CAIDC"],["eaidc","6.EAIDC"],["cusedc","7.CUS EDC"],["cushec","8.CUS HEC"],["ncd","9.NCD"],["aggr","10.AGGR"]],
+  CA: [["othcus","1.OTHCUS"],["othcvd","2.OTHCVD"],["petrcus","3.PETR CUS"],["infraces","4.INFRA CES"],["cuscvd","5.CUS CVD"]]
+};
+function dutySection(field){                       // which Part III section a duty field (bcdRate, caidcNotnNo, upi ...) belongs to
+  const m = /^([a-z0-9]+?)(NotnNo|NotnSno|Rate|Amount|DutyFg)$/.exec(field||"");
+  if(m){ for(const g of ["B","C","CA"]){ if(DUTY_COLS[g].some(function(c){ return c[0]===m[1]; })) return g; } }
+  return "A";
 }
+const PART4_TITLES = { svb:"SVB details", previous_be:"Previous BEs", reimport:"Re-import after export", manufacturer:"Manufacturer / producer / grower",
+  accessory:"Accessory status", licence:"Licence details", scheme_notification:"Scheme notification & duty foregone", certificate:"Certificate details",
+  hss:"HSS details", sw_declaration:"Single window declaration", sw_constituents:"Single window - constituents", sw_control:"Single window - control",
+  supporting:"Supporting documents", containers:"Container details", invoices:"Invoice details" };
+const PART4_ID = { supporting:"M", containers:"CONT", invoices:"INVD" };      // menu ids of the three built-in Part IV pages
+const PART4_ORDER = ["svb","previous_be","reimport","manufacturer","accessory","licence","scheme_notification","certificate","hss","sw_declaration","sw_constituents","sw_control"];
+
+function part4Sections(doc){
+  const have = {}; (doc.additional||[]).forEach(function(a){ have[a.code] = true; });
+  const extracted = Array.isArray(doc.additional);          // false for bills whose Part IV sections were never read
+  const letters = doc.sectionLetters, known = letters && Object.keys(letters).length;
+  const keys = known
+    ? Object.keys(letters).sort(function(a,b){ return letters[a] < letters[b] ? -1 : 1; })   // every section the PDF prints, in print order
+    : PART4_ORDER.filter(function(k){ return have[k]; }).concat(["supporting","containers","invoices"]);
+  return keys.map(function(k){
+    const own = !PART4_ID[k];                                 // an A-L section (not supporting docs / containers / invoices)
+    return { s:PART4_ID[k]||k, l:(known && letters[k] ? letters[k]+". " : "")+PART4_TITLES[k],
+             st:(own && !have[k] && !extracted) ? "none" : "full", empty:(own && !have[k] && extracted) };
+  });
+}
+function sectionsFor(p, doc){
+  if(p.part==="IV") return part4Sections(doc);
+  const cat = CATALOG[p.part];
+  if(!cat) return p.sections;
+  const legacy = !(doc.schema >= 2);                // bills read with the full schema have every printed field
+  return cat.map(function(c){
+    return { s:c.s, l:(c.L ? c.L+". " : "")+c.l, st:(legacy ? (c.none ? "none" : (c.miss ? "partial" : "full")) : "full") };
+  });
+}
+function missingNoteHTML(part, S){
+  const c = (CATALOG[part]||[]).filter(function(x){ return x.s===S; })[0];
+  if(!c || !(c.none || c.miss) || curDoc().schema >= 2) return "";
+  return '<div class="missnote '+(c.none?'none':'part')+'"><b>'+(c.none ? 'Not extracted yet' : 'Partly extracted')+'</b> &mdash; printed in this section of the PDF but not read by the app: '
+    + '<span class="fl">'+(c.none||c.miss).map(escapeHtml).join(" &middot; ")+'</span></div>';
+}
+function tagHTML(sec){
+  if(sec.st==="none") return '<span class="tag n">not extracted</span>';
+  if(sec.st==="partial") return '<span class="tag p">partial</span>';
+  if(sec.empty) return '<span class="tag e">none declared</span>';
+  return "";
+}
+
 function renderNav(){
   const el = document.getElementById("navTree");
   const doc = DOCS[state.doc];
@@ -780,8 +890,8 @@ function renderNav(){
       const active = state.part===p.part && state.section===sec.s;
       let extra = "";
       if(p.part==="II" && sec.s==="E"){ extra = ' ('+doc.invoices[state.invIdx].items.length+')'; }
-      html += '<button class="sec-btn '+(active?"active":"")+'" onclick="go(\''+p.part+'\',\''+sec.s+'\')">'+sec.l+extra
-        + navCount(p.part, sec.s, (p.part==="II"||p.part==="III") ? state.invIdx : -1)+'</button>';
+      html += '<button class="sec-btn '+(active?"active":"")+(sec.st==="none"?" none":"")+'" onclick="go(\''+p.part+'\',\''+sec.s+'\')">'+sec.l+extra
+        + tagHTML(sec) + navCount(p.part, sec.s, (p.part==="II"||p.part==="III") ? state.invIdx : -1)+'</button>';
     });
   });
   el.innerHTML = html;
@@ -975,9 +1085,9 @@ function searchVariants(v){
   if(longest && longest.length>=5) out.push(longest);
   return uniq(out);
 }
-async function pdfFocus(path){
+async function pdfFocus(path, pagesOverride){
   if(!showPdf()) return;
-  const doc = RAW[state.doc], pages = candidatePages(path, doc);
+  const doc = RAW[state.doc], pages = pagesOverride || candidatePages(path, doc);
   if(!pages.length) return;
   const my = ++PDFV.seq;
   PDFV.hl = null; drawHl(false);
@@ -996,6 +1106,10 @@ function pdfSync(){                                                 // after eve
   const changed = PDFV.lastSec!==k;
   PDFV.lastSec = k;
   if(!changed){ pdfEnsure(function(){ pdfLabel(); drawHl(false); }); return; }   // e.g. after an edit: keep the place
+  if(state.part==="IV" && (state.section==="CONT" || state.section==="INVD")){
+    const rp = state.section==="CONT" ? "containers.0.containerNumber" : "invoices.0.no";
+    if(pathGet(doc, rp)!==undefined && pathGet(doc, rp)!==null){ PDFV.hl = null; pdfFocus(rp, (doc.pageMap && doc.pageMap.IV) || []); return; }
+  }
   const rep = { I:"boe.beNo", II:"invoices."+state.invIdx+".no", III:"invoices."+state.invIdx+".duties",
                 IV:"supportingDocs.0.irn", V:"compliance.examOrder", VI:"signatory.chaName" }[state.part];
   const pages = rep ? sectionPages(rep, doc) : [];
@@ -1242,7 +1356,7 @@ function locate(path, doc){
     if(k==="valuation") return ["II","C",i];
     if(k==="cost") return ["II","D",i];
     if(k==="items") return ["II","E",i];
-    if(k==="duties") return ["III","A",i];
+    if(k==="duties") return ["III", dutySection(t[4]), i];
     return ["II","A",i];
   }
   if(h==="additional"){ const a = doc.additional && doc.additional[+t[1]]; return a ? ["IV", a.code] : null; }
@@ -1308,6 +1422,7 @@ function initDocs(){
       raw.edits[p] = { orig:e.orig, origConf:e.origConf||null, at:e.at||"" };
       raw.conf[p] = { s:1, b:"edited", r:[] };
     });
+    if(typeof BUILTIN_LETTERS!=="undefined" && BUILTIN_LETTERS[k]){ raw.sectionLetters = BUILTIN_LETTERS[k]; }
     if(typeof BUILTIN_PAGES!=="undefined" && BUILTIN_PAGES[k]){ raw.pageMap = BUILTIN_PAGES[k].pageMap; raw.pageCount = BUILTIN_PAGES[k].pageCount; }
     RAW[k] = raw; DOCS[k] = deepEscape(raw);
   });
@@ -1346,18 +1461,24 @@ function renderMain(){
         ["","Total items","boe.totalItems",{raw:true}],["","Total containers","boe.totalContainers",{raw:true}],
         ["","Total packages","boe.totalPackages",{raw:true}],["","Gross weight (kg)","boe.grossWeightKg",{raw:true}],["","Barcode ref","boe.barcode"]]);
     } else if(S==="A"){ label = "Status";
-      body = sheetRows([["1","BE status","status.beStatus"],["2","Mode","status.mode"],["8","Assess","status.assess"],["9","Exam","status.exam"],
+      body = sheetRows([["1","BE status","status.beStatus"],["2","Mode","status.mode"],["3","Def BE","status.defBe"],["4","Kaccha","status.kaccha"],
+        ["5","Sec 48","status.sec48"],["6","Reimp","status.reimp"],["7","Adv BE","status.advBe"],["8","Assess","status.assess"],["9","Exam","status.exam"],
         ["10","HSS","status.hss"],["11","First check","status.firstCheck"],["12","Prov / Final","status.provFinal"],
         ["13","Country of origin","status.countryOfOrigin"],["14","Country of consignment","status.countryOfConsignment"],
         ["15","Port of loading","status.portOfLoading"],["16","Port of shipment","status.portOfShipment"]]);
     } else if(S==="B"){ label = "Declarant";
       body = sheetRows([["1","Importer name","declarant.importerName"],["","Importer address","declarant.importerAddress",{multi:true}],
-        ["2","CB name","declarant.cbName"],["","AD code","declarant.adCode"]]);
+        ["2","CB name","declarant.cbName"],["3","AEO","declarant.aeo"],["4","UCR","declarant.ucr"],["","AD code","declarant.adCode"]]);
     } else if(S==="C"){ label = "Duty summary";
-      body = sheetRows([["1","BCD","dutySummary.bcd"],["3","SWS","dutySummary.sws"],["7","IGST","dutySummary.igst"],
-        ["18","Total assessable value","dutySummary.totalAssessableValue"],["14","Total duty","dutySummary.totalDuty"],["19","Total amount","dutySummary.totalAmount"]]);
+      body = sheetRows([["1","BCD","dutySummary.bcd"],["2","ACD","dutySummary.acd"],["3","SWS","dutySummary.sws"],["4","NCCD","dutySummary.nccd"],
+        ["5","ADD","dutySummary.add"],["6","CVD","dutySummary.cvd"],["7","IGST","dutySummary.igst"],["8","G.CESS","dutySummary.gCess"],
+        ["9","SG","dutySummary.sg"],["10","SAED","dutySummary.saed"],["11","GSIA","dutySummary.gsia"],["12","TTA","dutySummary.tta"],
+        ["13","Health","dutySummary.health"],["14","Total duty","dutySummary.totalDuty"],["15","Interest","dutySummary.interest"],
+        ["16","Penalty","dutySummary.penalty"],["17","Fine","dutySummary.fine"],["18","Total assessable value","dutySummary.totalAssessableValue"],
+        ["19","Total amount","dutySummary.totalAmount"]]);
     } else if(S==="D"){ label = "Manifest";
-      body = sheetRows([["6","MAWB no.","manifest.mawbNo"],["7","MAWB date","manifest.mawbDate"],["8","HAWB no.","manifest.hawbNo"],
+      body = sheetRows([["1","IGM no.","manifest.igmNo"],["2","IGM date","manifest.igmDate"],["3","INW date","manifest.inwDate"],
+        ["4","GIGM no.","manifest.gigmNo"],["5","GIGM date","manifest.gigmDate"],["6","MAWB no.","manifest.mawbNo"],["7","MAWB date","manifest.mawbDate"],["8","HAWB no.","manifest.hawbNo"],
         ["9","HAWB date","manifest.hawbDate"],["10","Packages","manifest.packages",{raw:true}],["11","Gross weight (kg)","manifest.grossWeightKg",{raw:true}]]);
     } else if(S==="F"){ label = "Payment";
       body = doc.payments.length ? doc.payments.map(function(p,i){
@@ -1369,13 +1490,29 @@ function renderMain(){
           const b = "events."+i;
           return '<tr>'+ecell(b+".event",e.event)+ecell(b+".date",e.date)+ecell(b+".time",e.time)+ecell(b+".rate",e.rate)+'</tr>';
         }).join("")) : none("No processing events declared.");
+    } else if(S==="E"){ label = "Bond details";
+      body = !Array.isArray(doc.bonds) ? "" : (doc.bonds.length ? tbl(["Bond no.","Port","Bond cd","Debt amt","BG amt"], doc.bonds.map(function(x,i){
+          const b = "bonds."+i;
+          return '<tr>'+ecell(b+".bondNo",x.bondNo)+ecell(b+".port",x.port)+ecell(b+".bondCd",x.bondCd)+ecell(b+".debtAmt",x.debtAmt,"num")+ecell(b+".bgAmt",x.bgAmt,"num")+'</tr>';
+        }).join("")) : none("None declared."));
+    } else if(S==="G"){ label = "Warehouse details";
+      body = !Array.isArray(doc.warehouse) ? "" : (doc.warehouse.length ? tbl(["WBE no.","Date","WBE site","WH code"], doc.warehouse.map(function(x,i){
+          const b = "warehouse."+i;
+          return '<tr>'+ecell(b+".wbeNo",x.wbeNo)+ecell(b+".date",x.date)+ecell(b+".site",x.site)+ecell(b+".whCode",x.whCode)+'</tr>';
+        }).join("")) : none("None declared."));
+    } else if(S==="I"){ label = "Invoice details - summary";
+      body = tbl(["S no.","Invoice no.","Invoice amount","Cur"], doc.invoices.map(function(inv,i){
+          const b = "invoices."+i;
+          return '<tr><td>'+inv.sno+'</td>'+ecell(b+".no",inv.no)+ecell(b+".amount",fmt(inv.amount),"num")+ecell(b+".currency",inv.currency)+'</tr>';
+        }).join(""));
     } else if(S==="J"){ label = "Containers";
       body = doc.containers.length ? tbl(["Sno","LCL / FCL","Truck","Seal","Container no."], doc.containers.map(function(c,i){
           const b = "containers."+i;
           return '<tr>'+ecell(b+".sno",c.sno)+ecell(b+".lclFcl",c.lclFcl)+ecell(b+".truck",c.truck)+ecell(b+".seal",c.seal)+ecell(b+".containerNumber",c.containerNumber)+'</tr>';
         }).join("")) : none("None declared (LCL / not containerised).");
     }
-    main.innerHTML = head("I — Bill of Entry summary", label, label) + hint + ((S==="H" || S==="J") ? body : sheet(body));
+    const bare = !body, asTable = (S==="H" || S==="J" || S==="I" || S==="E" || S==="G");
+    main.innerHTML = head("I — Bill of Entry summary", label, label) + (bare ? "" : hint) + (bare ? "" : (asTable ? body : sheet(body)));
     return;
   }
 
@@ -1387,21 +1524,29 @@ function renderMain(){
     const ttl = label+" — Invoice "+inv.sno+"/"+doc.invoices.length;
     if(S==="A"){
       main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(
-        Fld("1","Invoice no.",ib+".no") + Fld("","Invoice date",ib+".date")
+        Fld("1","S. no.",ib+".sno",{raw:true}) + Fld("2","Invoice no.",ib+".no") + Fld("","Invoice date",ib+".date")
+        + Fld("3","Purchase order no.",ib+".poNo") + Fld("","Purchase order date",ib+".poDate")
+        + Fld("4","LC no.",ib+".lcNo") + Fld("","LC date",ib+".lcDate")
+        + Fld("5","Contract no.",ib+".contractNo") + Fld("","Contract date",ib+".contractDate")
+        + Fld("6","AD code",ib+".adCode")
         + Fld("","Invoice amount",ib+".amount",{fmt:function(v){ return money(v,cur); }}) + Fld("","Currency",ib+".currency"));
     } else if(S==="B"){
       main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
         ["1","Buyer",ib+".parties.buyer",{multi:true}],["2","Seller",ib+".parties.seller",{multi:true}],
-        ["3","Supplier",ib+".parties.supplier",{multi:true}],["4","Third party",ib+".parties.thirdParty",{multi:true}]]));
+        ["3","Supplier",ib+".parties.supplier",{multi:true}],["4","Third party",ib+".parties.thirdParty",{multi:true}],
+        ["5","AEO",ib+".parties.aeo"]]));
     } else if(S==="C"){
       const b = ib+".valuation.";
       main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
         ["1","Invoice value",b+"invoiceValue",{fmt:function(v){ return money(v,cur); }}],["2","Freight",b+"freight"],["3","Insurance",b+"insurance"],
         ["4","HSS",b+"hss"],["5","Loading",b+"loading"],["6","Commission",b+"commission"],["7","Pay terms",b+"payTerms"],
         ["8","Valuation method",b+"valuationMethod"],["9","Related party",b+"relatedParty"],["10","SVB channel",b+"svbCh"],
-        ["11","SVB no.",b+"svbNo"],["12","SVB date",b+"svbDate"],["13","LOA",b+"loa"],["14","Currency",b+"currency"],["15","Incoterm",b+"incoterm"]]));
+        ["11","SVB no.",b+"svbNo"],["12","SVB date",b+"svbDate"],["13","LOA",b+"loa"],["14","Currency (invoice)",b+"currency"],["14","Currency (freight)",b+"freightCurrency"],["15","Incoterm",b+"incoterm"]]));
     } else if(S==="D"){
       main.innerHTML = head("II — Invoice & valuation", crumbTxt, ttl) + hint + sheet(sheetRows([
+        ["1","C&B",ib+".cost.cb"],["2","CoC",ib+".cost.coc"],["3","CoP",ib+".cost.cop"],["4","HND CHG",ib+".cost.hndChg"],
+        ["5","G&S",ib+".cost.gs"],["6","DOC. CH",ib+".cost.docCh"],["7","COO",ib+".cost.coo"],["8","R & LF",ib+".cost.rlf"],
+        ["9","OTH COST",ib+".cost.othCost"],["10","LD / ULD",ib+".cost.ldUld"],["11","WS",ib+".cost.ws"],["12","OTC",ib+".cost.otc"],
         ["13","Misc. charge",ib+".cost.miscCharge"],["14","Assessable value",ib+".cost.assessValue"]]));
     } else if(S==="E"){
       if(state.itemIdx!==null){
@@ -1429,24 +1574,69 @@ function renderMain(){
   if(P==="III"){
     const d = inv.duties || {};
     const ks = Object.keys(d).sort(function(a,b){ return a-b; });
-    const h = head("III — Duties", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; Item duties", "Item duties — Invoice "+inv.sno+"/"+doc.invoices.length);
+    const cat = CATALOG.III.filter(function(x){ return x.s===S; })[0] || CATALOG.III[0];
+    const ttl = (cat.L ? cat.L+". " : "")+cat.l;
+    const tail = " — Invoice "+inv.sno+"/"+doc.invoices.length;
+    const h = head("III — Duties", "Invoice "+inv.sno+"/"+doc.invoices.length+" &middot; "+cat.l, ttl+tail);
     if(!ks.length){ main.innerHTML = h + none("No Part III duty data for this invoice."); return; }
-    const t = {a:0,b:0,s:0,i:0,d:0};
-    const rate = function(r){ return (r===null||r===undefined) ? "" : r+"%"; };
-    const rows = ks.map(function(k){
-      const x = d[k], b = ib+".duties."+k;
-      t.a+=x.assessValue||0; t.b+=x.bcdAmount||0; t.s+=x.swsAmount||0; t.i+=x.igstAmount||0; t.d+=x.totalDuty||0;
-      return '<tr><td>'+k+'</td>'+ecell(b+".cth",x.cth,"cth")+ecell(b+".assessValue",fmt(x.assessValue),"num")+ecell(b+".bcdRate",rate(x.bcdRate),"num")
-        + ecell(b+".bcdAmount",fmt(x.bcdAmount),"num")+ecell(b+".swsAmount",fmt(x.swsAmount),"num")+ecell(b+".igstRate",rate(x.igstRate),"num")
-        + ecell(b+".igstAmount",fmt(x.igstAmount),"num")+ecell(b+".totalDuty",fmt(x.totalDuty),"num")+'</tr>';
-    }).join("");
-    const foot = '<tfoot><tr class="tot"><td colspan="2">Invoice total ('+ks.length+' items)</td><td class="num">'+fmt(t.a)+'</td><td></td><td class="num">'+fmt(t.b)
-      + '</td><td class="num">'+fmt(t.s)+'</td><td></td><td class="num">'+fmt(t.i)+'</td><td class="num">'+fmt(t.d)+'</td></tr></tfoot>';
-    main.innerHTML = h + hint + tbl(["Item","CTH","Assess value","BCD rate","BCD","SWS","IGST rate","IGST","Total duty"], rows, foot);
+    const raw = function(v){ return (v===null||v===undefined) ? "" : String(v); };      // shown as printed
+    if(S==="A"){
+      const t = {a:0,d:0};
+      ks.forEach(function(k){ t.a += d[k].assessValue||0; t.d += d[k].totalDuty||0; });
+      const cols = [["cth","3.CTH","cth"],["ceth","4.CETH"],["description","5.ITEM DESCRIPTION"],["fs","6.FS"],["pq","7.PQ"],["dc","8.DC"],["wc","9.WC"],["aq","10.AQ"],
+        ["upi","11.UPI","num"],["coo","12.COO"],["cQty","13.C.QTY","num"],["cUqc","14.C.UQC"],["sQty","15.S.QTY","num"],["sUqc","16.S.UQC"],["sch","17.SCH"],
+        ["stndPr","18.STND/PR"],["rsp","19.RSP"],["reimp","20.REIMP"],["prov","21.PROV"],["endUse","22.END USE"],["prodn","23.PRODN"],["cntrl","24.CNTRL"],
+        ["qualfr","25.QUALFR"],["contnt","26.CONTNT"],["stmnt","27.STMNT"],["supDocs","28.SUP DOCS"],["assessValue","29.ASSESS VALUE","num"],["totalDuty","30.TOTAL DUTY","num"]];
+      const rows = ks.map(function(k){
+        const x = d[k], b = ib+".duties."+k;
+        return '<tr><td>'+k+'</td>'+cols.map(function(c){ return ecell(b+"."+c[0], raw(x[c[0]]), c[2]||""); }).join("")+'</tr>';
+      }).join("");
+      const foot = '<tfoot><tr class="tot"><td colspan="'+(cols.length-1)+'">Invoice total ('+ks.length+' items) &mdash; assess value / total duty</td><td class="num">'+fmt(t.a)+'</td><td class="num">'+fmt(t.d)+'</td></tr></tfoot>';
+      main.innerHTML = h + '<div class="note" style="margin:6px 0 12px">Printed fields 1&ndash;30 of each item (1.INVSNO is the invoice shown above). Click a cell to edit it.</div>'
+        + tbl(["2.ITEMSN"].concat(cols.map(function(c){ return c[1]; })), rows, foot);
+    } else {
+      const grp = DUTY_COLS[S];
+      const rowsDef = [["NotnNo","Notn No."],["NotnSno","Notn SNo."],["Rate","Rate"],["Amount","Amount"],["DutyFg","Duty Fg"]];
+      const tot = {};
+      ks.forEach(function(k){ grp.forEach(function(c){ const v = d[k][c[0]+"Amount"]; if(typeof v==="number") tot[c[0]] = (tot[c[0]]||0) + v; }); });
+      const sum = grp.filter(function(c){ return tot[c[0]]!==undefined && c[0]!=="tvalue" && c[0]!=="aggr"; })
+        .map(function(c){ return c[1].replace(/^\d+\.\s*/,"")+" "+fmt(tot[c[0]]); }).join(" &middot; ");
+      main.innerHTML = h + '<div class="note" style="margin:6px 0 12px">One block per item, laid out as printed (columns = duties, rows = notification, rate, amount, duty foregone). Click a cell to edit it.'
+        + (sum ? '<br><b>Invoice totals:</b> '+sum : '')+'</div>'
+        + ks.map(function(k){
+            const b = ib+".duties."+k;
+            const body = rowsDef.map(function(r){
+              return '<tr><th class="rl">'+r[1]+'</th>'+grp.map(function(c){
+                const v = d[k][c[0]+r[0]]; return ecell(b+"."+c[0]+r[0], raw(v), (r[0]==="NotnNo"||r[0]==="NotnSno") ? "" : "num");
+              }).join("")+'</tr>';
+            }).join("");
+            return '<div class="itemhd">Item '+k+' &middot; '+(d[k].cth||"")+'</div>' + tbl([""].concat(grp.map(function(c){ return c[1]; })), body);
+          }).join("");
+    }
     return;
   }
 
   /* ---------------- Part IV ---------------- */
+  if(P==="IV" && S==="CONT"){
+    const cs = doc.containers || [];
+    main.innerHTML = head("IV — Additional details", "Container details", "Container details")
+      + (cs.length ? '<div class="note" style="margin:6px 0 12px">Click a cell to edit it. These are the same containers shown under Part I &rsaquo; Containers.</div>'
+          + tbl(["Container no.","Truck","Seal","LCL / FCL","Sno"], cs.map(function(c,i){
+              const b = "containers."+i;
+              return '<tr>'+ecell(b+".containerNumber",c.containerNumber)+ecell(b+".truck",c.truck)+ecell(b+".seal",c.seal)+ecell(b+".lclFcl",c.lclFcl)+ecell(b+".sno",c.sno,"num")+'</tr>';
+            }).join(""))
+        : none("No containers declared (LCL / not containerised)."));
+    return;
+  }
+  if(P==="IV" && S==="INVD"){
+    main.innerHTML = head("IV — Additional details", "Invoice details", "Invoice details")
+      + '<div class="note" style="margin:6px 0 12px">Click a cell to edit it. These are the same invoices shown under Part II.</div>'
+      + tbl(["S no.","Invoice no.","Invoice amount","Cur"], doc.invoices.map(function(inv,i){
+          const b = "invoices."+i;
+          return '<tr><td>'+inv.sno+'</td>'+ecell(b+".no",inv.no)+ecell(b+".amount",fmt(inv.amount),"num")+ecell(b+".currency",inv.currency)+'</tr>';
+        }).join(""));
+    return;
+  }
   if(P==="IV"){
     const ai = (doc.additional||[]).map(function(x){ return x.code; }).indexOf(S);
     if(ai>=0){
@@ -1457,6 +1647,12 @@ function renderMain(){
       main.innerHTML = head("IV — Additional details", add.title, add.title)
         + '<div class="note" style="margin:6px 0 12px">'+add.rows.length+' row'+(add.rows.length===1?'':'s')+' declared. Click a cell to edit it.</div>'
         + tbl(add.columns, rows);
+      return;
+    }
+    if(S!=="M" && PART4_TITLES[S] && S!=="CONT" && S!=="INVD"){
+      main.innerHTML = head("IV — Additional details", PART4_TITLES[S], PART4_TITLES[S])
+        + none(Array.isArray(doc.additional) ? "None declared in the PDF for this bill."
+               : "Not extracted for this bill. Upload the PDF again to read this section.");
       return;
     }
     const sd = doc.supportingDocs || [];
@@ -1485,7 +1681,8 @@ function renderMain(){
     };
     let body = "";
     if(S==="A"){
-      body = Fld("A","Examination order (RMS)","compliance.examOrder",{multi:true}) + list("B","Examination instructions",c.examInstructions,"examInstructions");
+      body = Fld("A","Examination order (RMS)","compliance.examOrder",{multi:true}) + Fld("A1","Examination order","compliance.examOrderA1",{multi:true})
+        + list("B","Examination instructions",c.examInstructions,"examInstructions");
       const pga = c.pgaInstructions || [];
       main.innerHTML = h + hint + sheet(body)
         + '<h3 class="subtitle">PGA examination instructions</h3>'
@@ -1561,6 +1758,8 @@ function render(){
   renderNav();
   renderMain();
   const mainEl = document.getElementById("main");
+  const h2 = mainEl.querySelector("h2.title");
+  if(h2){ h2.insertAdjacentHTML("afterend", missingNoteHTML(state.part, state.section)); }
   mainEl.insertAdjacentHTML("afterbegin", reviewBarHTML(doc));
   if(doc.quality){ mainEl.insertAdjacentHTML("afterbegin", qualityHTML(doc)); }
   pdfSync();

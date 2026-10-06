@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import extract_service as svc
 import pdfview
+from sections import part4_letters
 from report import build_report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -67,7 +68,7 @@ def save_doc(doc: dict, pdf: bytes) -> str:
 
 
 EDIT_DENY_TOP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt",
-                 "hasPdf", "pageCount", "pageMap"}
+                 "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema"}
 KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
@@ -142,7 +143,10 @@ def list_docs() -> list[dict]:
             if ID_RE.match(name[:-5]) and name.endswith(".json"):
                 try:
                     d = json.load(open(os.path.join(UPLOADS, name), encoding="utf-8"))
-                    d["hasPdf"] = os.path.exists(os.path.join(UPLOADS, name[:-5] + ".pdf"))
+                    pdf = os.path.join(UPLOADS, name[:-5] + ".pdf")
+                    d["hasPdf"] = os.path.exists(pdf)
+                    if d["hasPdf"] and not d.get("sectionLetters"):          # stored before letters were detected
+                        d["sectionLetters"] = part4_letters(pdfview.texts(pdf))
                     out.append(d)
                 except Exception:  # noqa: BLE001
                     pass

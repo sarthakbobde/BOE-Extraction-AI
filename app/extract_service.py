@@ -20,6 +20,7 @@ from pydantic_ai.models.google import GoogleModel  # noqa: E402
 from pydantic_ai.providers.google import GoogleProvider  # noqa: E402
 
 import pipeline as core  # noqa: E402
+from sections import part4_letters  # noqa: E402
 from cost import CostMeter  # noqa: E402
 from checks import run_all_checks  # noqa: E402
 from to_viewer import build_doc  # noqa: E402
@@ -31,11 +32,15 @@ EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")
 MAX_PAGES = 120
 
 EXTRA_PROMPTS = {
-    "part1": core.COMMON + "This is Part I. Extract the header, status flags, declarant, manifest, payment, processing "
-                           "events and container rows. Status flags are single letters (Y/N/T/F/P). "
-                           "Events: list every row of H. PROCESSING DETAILS that has a date.",
-    "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract sections A (invoice no/date), "
-                                 "B (transacting parties) and C (valuation). Join multi-line addresses with ', '.",
+    "part1": core.COMMON + "This is Part I. Extract the header, ALL of A. STATUS (fields 1-16, flags are single letters "
+                           "Y/N/T/F/P), B. DECLARANT (incl. AEO, UCR), D. MANIFEST (IGM no/date, INW date, GIGM no/date, "
+                           "MAWB, HAWB, packages, gross weight), E. BOND DETAILS rows, F. PAYMENT rows, G. WH rows, "
+                           "H. PROCESSING events and J. CONTAINER rows. A section that is blank on the page gives an "
+                           "empty list / null values. Events: list every row of H. PROCESSING DETAILS that has a date.",
+    "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract section A (1.S.NO, 2.INVOICE NO & DT, "
+                                 "3.PURCHASE ORDER NO & DT, 4.LC NO & DATE, 5.CONTRACT NO & DATE, 6.AD CODE), B (transacting "
+                                 "parties incl. 5.AEO) and C (valuation). Join multi-line addresses with ', '. Split a "
+                                 "combined 'number & date' cell into its number and its date.",
     "part4": core.COMMON + "This is a Part IV (additional details) page. Section LETTERS differ between form versions, so "
                            "identify each section by its printed TITLE. One list entry per printed DATA row; printed "
                            "column headers and the glossary are not data. Extract: (1) the SUPPORTING DOCUMENTS section "
@@ -203,5 +208,7 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
                      "IV": sorted(pn for pn, ks in kinds.items() if "part4" in ks),
                      "V": sorted(pn for pn, ks in kinds.items() if "part5" in ks),
                      "VI": sorted(pn for pn, ks in kinds.items() if "part6" in ks)}
-    return build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages),
+    out = build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages),
                      section_pages=section_pages, page_count=len(pages))
+    out["sectionLetters"] = part4_letters([pg.text for pg in pages])     # printed Part IV letters (vary by form version)
+    return out

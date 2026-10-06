@@ -77,11 +77,21 @@ Rules:
 """
 
 PROMPTS = {
-    "summary": COMMON + "This is Part I (summary). Exchange rate may be 'per 100 units' (e.g. 100 JPY=58.65INR).",
+    "summary": COMMON + "This is Part I (summary). Exchange rate may be 'per 100 units' (e.g. 100 JPY=58.65INR). "
+                        "Read EVERY cell of C. DUTY SUMMARY (1.BCD ... 19.TOT. AMOUNT): a blank cell is null, a printed 0 is '0'.",
     "invoice": COMMON + "This is Part II. First pages of an invoice have sections A-D plus items; continuation pages "
                         "have only A and the item table (set header=null). 14.Cur may show two currencies: "
-                        "invoice currency then freight currency.",
-    "duties": COMMON + "This is Part III. Each block is one item. Read only the B. ITEM DUTY table for rate/amount.",
+                        "invoice currency then freight currency. In D. COST & SERVICES read every cell 1.C&B to "
+                        "14.ASS. VALUE (blank = null).",
+    "duties": COMMON + "This is Part III. Each item is a block with three sections, read ALL of them:\n"
+                       "A. ITEM DETAILS: 30 numbered fields over three rows (1.INVSNO ... 28.SUP DOCS, 29.ASSESS VALUE, "
+                       "30.TOTAL DUTY); blank cell = null.\n"
+                       "B. ITEM DUTY, C. OTHER DUTIES and C. OTHER DUTIES - A are matrices: one COLUMN per duty (B: BCD, "
+                       "CVD_05, SWS, SAD, IGST, G.CESS, ADD, CVD, SG, T.VALUE; C: SP EXD, CHCESS, TTA, CESS, CAIDC, EAIDC, "
+                       "CUS EDC, CUS HEC, NCD, AGGR; C-A: OTHCUS, OTHCVD, PETR CUS, INFRA CES, CUS CVD) and five ROWS "
+                       "(Notn No., Notn SNo., Rate, Amount, Duty Fg). Return one entry per column that has at least one "
+                       "non-blank cell, with each row's value (null if that cell is blank). Take every value from the "
+                       "column directly under its heading; the Duty Fg row holds amounts, not flags.",
 }
 OUTPUT = {"summary": SummaryPage, "invoice": InvoicePage, "duties": DutyPage}
 

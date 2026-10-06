@@ -216,8 +216,12 @@ def check_duty_items(ex: BoeExtraction) -> list[Issue]:
         exp_igst = ig_r / 100 * (av + bcd_notional + sws)
         if not close(ig_a, exp_igst, Decimal("0.4")):
             out.append(Issue("duty_igst", f"IGST {ig_a} != {ig_r}% x (AV+BCD+SWS) = {exp_igst:.2f}", [f"{p}.igst_amount", f"{p}.igst_rate", f"{p}.assess_value", f"{p}.sws_amount"]))
-        if not close(td, bcd_a + sws + ig_a, Decimal("0.2")):
-            out.append(Issue("duty_total", f"item total {td} != BCD+SWS+IGST = {bcd_a+sws+ig_a}", [f"{p}.total_duty", f"{p}.bcd_amount", f"{p}.sws_amount", f"{p}.igst_amount"]))
+        base_total = bcd_a + sws + ig_a
+        # other duty amounts printed in B (CVD_05, SAD, G.CESS, ADD, CVD, SG) and C / C-A also count towards the total
+        extras = sum((dv(c.amount, ZERO) for c in d.item_duty + d.other_duties + d.other_duties_a
+                      if c.code not in ("BCD", "SWS", "IGST", "TVALUE", "AGGR")), ZERO)
+        if not (close(td, base_total, Decimal("0.2")) or close(td, base_total + extras, Decimal("0.2"))):
+            out.append(Issue("duty_total", f"item total {td} != BCD+SWS+IGST = {base_total}", [f"{p}.total_duty", f"{p}.bcd_amount", f"{p}.sws_amount", f"{p}.igst_amount"]))
     return out
 
 
@@ -232,13 +236,17 @@ def check_duty_totals(ex: BoeExtraction) -> list[Issue]:
         if not close(total, printed, tol):
             out.append(Issue("duty_rollup", f"sum of item {name.upper()} {total} != Part I {printed}", [f"summary.{name}"]))
     td = dv(s.total_duty)
-    parts = sum((dv(getattr(s, n_), ZERO) for n_ in ("bcd", "sws", "igst")), ZERO)
+    heads = ("bcd", "acd", "sws", "nccd", "add", "cvd", "igst", "g_cess", "sg", "saed", "gsia", "tta", "health")
+    parts = sum((dv(getattr(s, n_), ZERO) for n_ in heads), ZERO)
     if not close(parts, td, Decimal(1)):
-        out.append(Issue("duty_summary", f"BCD+SWS+IGST {parts} != total duty {td}", ["summary.total_duty", "summary.bcd", "summary.sws", "summary.igst"]))
+        out.append(Issue("duty_summary", f"sum of duty heads {parts} != total duty {td}",
+                         ["summary.total_duty"] + [f"summary.{n_}" for n_ in heads if getattr(s, n_) is not None]))
     if not close(td, dv(s.challan_amount), Decimal(1)):
         out.append(Issue("challan", f"total duty {td} != challan {s.challan_amount.value}", ["summary.total_duty", "summary.challan_amount"]))
-    if not close(td, dv(s.total_amount), Decimal(1)):
-        out.append(Issue("duty_summary", f"total duty {td} != total amount {s.total_amount.value}", ["summary.total_amount"]))
+    levy = sum((dv(getattr(s, n_), ZERO) for n_ in ("interest", "penalty", "fine")), ZERO)     # total amount = duty + int + penalty + fine
+    if not close(td + levy, dv(s.total_amount), Decimal(1)):
+        out.append(Issue("duty_summary", f"total duty {td} + interest/penalty/fine {levy} != total amount {s.total_amount.value}",
+                         ["summary.total_amount"]))
     item_av = sum((dv(d.assess_value, ZERO) for d in ex.duty_items), ZERO)
     if not close(item_av, dv(s.total_assessable_value), Decimal("0.02") * n + 1):
         out.append(Issue("av_rollup", f"sum of item AV {item_av} != Part I {s.total_assessable_value.value}", ["summary.total_assessable_value"]))

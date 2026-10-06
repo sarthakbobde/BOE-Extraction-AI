@@ -20,7 +20,7 @@ from checks import numbers_on_page  # noqa: E402
 
 REVIEW_BELOW = 0.8
 TOP_SKIP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt",
-            "hasPdf", "pageCount", "pageMap"}
+            "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema"}
 LEAF_SKIP = {"sno", "srNo", "inv", "item", "for", "columns", "title", "code"}
 TOKEN = re.compile(r"[A-Z0-9]+")
 DATE_FORMATS = ("%d-%b-%Y",)

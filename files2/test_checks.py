@@ -6,8 +6,8 @@ catches realistic LLM mistakes (digit swap, wrong row, dropped item, wrong colum
 import copy
 
 from checks import evidence_issues, parse_rates, run_all_checks
-from schemas import (BoeExtraction, DutyItem, Ev, InvoiceHeader, InvoicePage,
-                     InvoiceRef, ItemLine, SummaryPage)
+from schemas import (BoeExtraction, DutyCell, DutyItem, Ev, InvoiceHeader, InvoicePage,
+                     InvoiceRef, ItemLine, SummaryPage, Val)
 
 
 def ev(v):
@@ -139,3 +139,57 @@ def test_evidence_found_and_missing():
     bad = copy.deepcopy(ok); bad.amount = ev("926879.63")
     miss = {i.paths[0] for i in evidence_issues(bad, page)}
     assert "amount" in miss and "unit_price" not in miss and "quantity" not in miss and "uqc" not in miss
+
+
+# ---------------------------------------------------------------- full-section schema (Parts I-III)
+def test_interest_penalty_fine_are_part_of_total_amount():
+    ex = golden()
+    ex.summary.penalty = Val(value="900")
+    ex.summary.total_amount = ev("754940")           # 754040 duty + 900 penalty
+    assert "duty_summary" not in checks_of(ex)
+
+
+def test_total_amount_above_duty_without_penalty_is_flagged():
+    ex = golden()
+    ex.summary.total_amount = ev("754940")
+    assert "duty_summary" in checks_of(ex)
+
+
+def test_other_duty_heads_count_towards_total_duty():
+    ex = golden()
+    ex.summary.g_cess = Val(value="100")
+    ex.summary.total_duty = ev("754140"); ex.summary.total_amount = ev("754140"); ex.summary.challan_amount = ev("754140")
+    assert "duty_summary" not in checks_of(ex)
+
+
+def test_item_total_includes_extra_duty_columns():
+    ex = golden()
+    d = ex.duty_items[0]
+    d.item_duty.append(DutyCell(code="G.CESS", rate=Val(value="1"), amount=Val(value="10")))
+    d.total_duty = ev("211095.5")                    # 211085.5 + 10 of cess
+    assert "duty_total" not in {i.check for i in run_all_checks(ex) if i.paths and "duty_items[0]" in i.paths[0]}
+
+
+def test_duty_cell_codes_are_canonical():
+    assert DutyCell(code="G.CESS").code == "GCESS"
+    assert DutyCell(code="CVD_05").code == "CVD05"
+    assert DutyCell(code="SP EXD").code == "SPEXD"
+    assert DutyCell(code="PETR CUS").code == "PETRCUS"
+
+
+def test_legacy_flat_duty_fields_still_load_from_old_outputs():
+    old = {"invsno": {"value": "1", "quote": "1"}, "itemsn": {"value": "2"}, "cth": {"value": "87089900"},
+           "assess_value": {"value": "17604.54"}, "total_duty": {"value": "6596.5"},
+           "bcd_rate": {"value": "15"}, "bcd_amount": {"value": "2640.7"}, "sws_amount": {"value": "264.1"},
+           "igst_rate": {"value": "18"}, "igst_amount": {"value": "3691.7"}}
+    d = DutyItem.model_validate(old)
+    assert [c.code for c in d.item_duty] == ["BCD", "SWS", "IGST"]
+    assert d.bcd_amount.value == "2640.7" and d.igst_rate.value == "18" and d.sws_amount.value == "264.1"
+
+
+def test_new_item_fields_are_evidence_checked():
+    ex = golden()
+    ex.duty_items[0].upi = Val(value="14482.49")
+    ex.duty_items[0].item_duty.append(DutyCell(code="IGST", notn_no=Val(value="009/2025")))
+    paths = {i.paths[0] for i in evidence_issues(ex.duty_items[0], "assess 563345.29 14482.49 total", "duty_items[0]")}
+    assert any(p.endswith("notn_no") for p in paths) and not any(p.endswith(".upi") for p in paths)

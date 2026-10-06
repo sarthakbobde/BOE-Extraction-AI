@@ -34,6 +34,11 @@ def page_count(path: str) -> int:
         return len(_open(path))
 
 
+def texts(path: str) -> list[str]:
+    with _LOCK:
+        return [p.get_text() for p in _open(path)]
+
+
 def page_sizes(path: str) -> list[list[float]]:
     """[[width, height], ...] in points, so the viewer can lay out every page before its image loads."""
     with _LOCK:
