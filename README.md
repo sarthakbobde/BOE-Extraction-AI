@@ -79,7 +79,8 @@ cost of every call (`[cost ...]` lines).
    from the link under the list).
 5. Optional: turn on **Double-check with a second model** for a slower, costlier independent audit of every field.
 
-Uploaded bills are stored as JSON in `app/uploads/`. The original PDF is not kept.
+Uploaded bills are stored in `app/uploads/` as `<id>.json` (the extracted data) and `<id>.pdf` (the original file, kept so
+you can compare side by side). Deleting a bill removes both.
 
 ### Confidence scores and editing
 
@@ -95,6 +96,20 @@ Uploaded bills are stored as JSON in `app/uploads/`. The original PDF is not kep
   - Uploaded bills: edits are saved on the server (`app/uploads/<id>.json`) together with the original value.
   - Sample bills: edits are kept in this browser only (localStorage).
 - The PDF report uses the edited values. Bills uploaded before this feature have no scores; upload them again to get them.
+
+### Side-by-side source PDF
+
+On a bill's detail page, **Show source PDF** (left menu) opens the original PDF beside the data.
+
+- It follows what you're looking at: switching section jumps to that part's page, and clicking a field (or a table
+  cell, or opening an item) jumps to the page it came from and **highlights where the value is printed**.
+- The PDF is one **continuous scroll** (all pages stacked; images load as you scroll). The counter in the header follows
+  your position; the page arrows, zoom, Fit and **Open** (the full PDF in a new tab) are there too.
+- Editing a field does not move you: the PDF keeps its place.
+- Pages are rendered by the server (PyMuPDF), so no browser PDF plugin is needed. Page sizes are sent first so the
+  layout does not jump while images load.
+- Bills uploaded before PDFs were kept show "Source PDF was not kept" - upload them again.
+- The two sample bills use `app/samples/D1.pdf` and `D2.pdf` (git-ignored; copy the sample PDFs there to enable it).
 
 ### Cost in the browser console
 
@@ -171,5 +186,6 @@ Add `--no-eval` to skip the evaluator. It uses the same model defaults and envir
 - The server listens on `127.0.0.1` only and rejects cross-origin requests.
 - Uploaded PDFs are sent to Google's Gemini API for processing. Do not upload documents you are not allowed to share
   with that service.
+- Uploaded PDFs are also kept on disk in `app/uploads/` (git-ignored) until you delete the bill.
 - The viewer ships with two sample bills built in; remove or replace them before sharing the project outside your
   organisation.

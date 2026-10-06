@@ -199,4 +199,9 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
         "checks": [{"check": i.check, "message": i.message} for i in issues[:60]],
     }
     print(meter.summary_line(), flush=True)
-    return build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages))
+    section_pages = {"I": sorted(pn for pn, ks in kinds.items() if "summary" in ks or "part1" in ks),
+                     "IV": sorted(pn for pn, ks in kinds.items() if "part4" in ks),
+                     "V": sorted(pn for pn, ks in kinds.items() if "part5" in ks),
+                     "VI": sorted(pn for pn, ks in kinds.items() if "part6" in ks)}
+    return build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages),
+                     section_pages=section_pages, page_count=len(pages))

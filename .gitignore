@@ -12,3 +12,6 @@ files2/*.json
 
 # unrelated file that came in the zip (css-tree library code)
 files1/error.cjs
+
+# sample bill PDFs (company documents, kept local)
+app/samples/

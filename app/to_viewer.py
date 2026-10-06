@@ -127,7 +127,8 @@ def first(items):
     return items[0][1] if items else None
 
 
-def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, full_text: str = "") -> dict:
+def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, full_text: str = "",
+              section_pages: dict | None = None, page_count: int | None = None) -> dict:
     s = ex.summary
     p1 = first(extras.get("part1"))
     hdr, st, dc, mf = (p1.header, p1.status, p1.declarant, p1.manifest) if p1 else (None,) * 4
@@ -162,6 +163,9 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
     invoices = []
     inv_idx: dict[str, int] = {}
     item_idx: dict[int, tuple[int, int]] = {}
+    page_idx = {id(pg): k for k, pg in enumerate(ex.invoice_pages)}
+    item_page: dict[int, int | None] = {}
+    inv_pages: dict[int, set] = {}
     for sno in sorted(grouped, key=lambda x: (integer(x) is None, integer(x) or 0)):
         pages = grouped[sno]
         h = next((p.header for p in pages if p.header), None)
@@ -169,6 +173,11 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
         si = summary_inv.get(sno)
         items = sorted((it for p in pages for it in p.items), key=lambda it: integer(it.sno) or 0)
         inv_idx[sno] = len(invoices)
+        for pg in pages:
+            pn = ex.page_of.get(f"invoice_pages[{page_idx[id(pg)]}]")
+            inv_pages.setdefault(len(invoices), set()).add(pn)
+            for it in pg.items:
+                item_page[id(it)] = pn
         for n, it in enumerate(items):
             item_idx[id(it)] = (len(invoices), n)
         invoices.append({
@@ -246,6 +255,23 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
 
     port_code = v(s.port_code)
     be_no = v(s.be_no)
+    # ---- where each thing sits in the PDF (drives the side-by-side viewer)
+    rows_pg: dict[str, int] = {}
+    for iid, (j, n) in item_idx.items():
+        if item_page.get(iid):
+            rows_pg[f"invoices.{j}.items.{n}"] = item_page[iid]
+    duty_pages: dict[int, set] = {}
+    for n, it in enumerate(ex.duty_items):
+        j, pn = inv_idx.get(v(it.invsno)), ex.page_of.get(f"duty_items[{n}]")
+        if j is not None and pn:
+            rows_pg[f"invoices.{j}.duties.{v(it.itemsn)}"] = pn
+            duty_pages.setdefault(j, set()).add(pn)
+    sp = section_pages or {}
+    page_map = {"I": sp.get("I") or [ex.page_of.get("summary", 1)],
+                "II": {str(j): sorted(p for p in ps if p) for j, ps in inv_pages.items()},
+                "III": {str(j): sorted(ps) for j, ps in duty_pages.items()},
+                "IV": sp.get("IV", []), "V": sp.get("V", []), "VI": sp.get("VI", []), "rows": rows_pg}
+
     doc = {
         "label": f"{port_code} · BE {be_no}", "short": f"BE {be_no}", "sourceFile": filename, "uploaded": True,
         "quality": quality,
@@ -294,4 +320,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
     conf.update(map_pipeline_rows(field_rows or [], ex, inv_idx, item_idx))
     doc["conf"] = {k: c for k, c in conf.items() if resolves(doc, k)}
     doc["edits"] = {}
+    doc["pageMap"] = page_map
+    if page_count:
+        doc["pageCount"] = page_count
     return doc

@@ -16,20 +16,31 @@ import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import extract_service as svc
+import pdfview
 from report import build_report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UPLOADS = os.path.join(HERE, "uploads")
 MAX_BYTES = 40 * 1024 * 1024
 ID_RE = re.compile(r"^[0-9a-f]{12}$")
+SAMPLE_IDS = ("D1", "D2")           # sample bills: PDFs live in app/samples/<id>.pdf (not committed)
+SAMPLES = os.path.join(HERE, "samples")
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
 
 
-def save_doc(doc: dict) -> str:
+def pdf_path(ident: str) -> str | None:
+    if ident in SAMPLE_IDS:
+        return os.path.join(SAMPLES, ident + ".pdf")
+    if ID_RE.match(ident):
+        return os.path.join(UPLOADS, ident + ".pdf")
+    return None
+
+
+def save_doc(doc: dict, pdf: bytes) -> str:
     os.makedirs(UPLOADS, exist_ok=True)
     ident = (doc["boe"]["portCode"], doc["boe"]["beNo"], doc["boe"]["beDate"])
     for name in os.listdir(UPLOADS):                       # re-uploading the same BE replaces it
@@ -38,17 +49,25 @@ def save_doc(doc: dict) -> str:
                 old = json.load(open(os.path.join(UPLOADS, name), encoding="utf-8"))
                 if (old["boe"]["portCode"], old["boe"]["beNo"], old["boe"]["beDate"]) == ident:
                     os.remove(os.path.join(UPLOADS, name))
+                    old_pdf = os.path.join(UPLOADS, name[:-5] + ".pdf")
+                    if os.path.exists(old_pdf):
+                        pdfview.drop(old_pdf)
+                        os.remove(old_pdf)
             except Exception:  # noqa: BLE001
                 pass
     doc_id = uuid.uuid4().hex[:12]
     doc["id"] = doc_id
     doc["uploadedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    doc["hasPdf"] = True
+    with open(os.path.join(UPLOADS, doc_id + ".pdf"), "wb") as f:
+        f.write(pdf)
     with open(os.path.join(UPLOADS, doc_id + ".json"), "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False)
     return doc_id
 
 
-EDIT_DENY_TOP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt"}
+EDIT_DENY_TOP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt",
+                 "hasPdf", "pageCount", "pageMap"}
 KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
@@ -122,7 +141,9 @@ def list_docs() -> list[dict]:
         for name in sorted(os.listdir(UPLOADS)):
             if ID_RE.match(name[:-5]) and name.endswith(".json"):
                 try:
-                    out.append(json.load(open(os.path.join(UPLOADS, name), encoding="utf-8")))
+                    d = json.load(open(os.path.join(UPLOADS, name), encoding="utf-8"))
+                    d["hasPdf"] = os.path.exists(os.path.join(UPLOADS, name[:-5] + ".pdf"))
+                    out.append(d)
                 except Exception:  # noqa: BLE001
                     pass
     return sorted(out, key=lambda d: d.get("uploadedAt", ""), reverse=True)
@@ -135,7 +156,7 @@ def run_job(job_id: str, pdf: bytes, filename: str, key: str, with_eval: bool):
 
     try:
         doc = asyncio.run(svc.extract(pdf, filename, key, with_eval, progress))
-        doc_id = save_doc(doc)
+        doc_id = save_doc(doc, pdf)
         with LOCK:
             JOBS[job_id].update(status="done", doc=doc, docId=doc_id)
     except svc.ExtractionError as e:
@@ -163,6 +184,46 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def pdf_route(self, path: str, query: str):
+        """/api/pdf/<id>/info | page/<n>.png?w=900 | find?pages=1,2&q=a||b | file"""
+        m = re.match(r"^/api/pdf/([0-9a-f]{12}|D1|D2)/(info|file|find|page/(\d{1,4})\.png)$", path)
+        fp = pdf_path(m.group(1)) if m else None
+        if not m or not fp or not os.path.exists(fp):
+            return self.send_json({"error": "PDF not available for this bill."}, 404)
+        qs = parse_qs(query)
+        what = m.group(2)
+        try:
+            if what == "info":
+                sizes = pdfview.page_sizes(fp)
+                return self.send_json({"pages": len(sizes), "sizes": sizes})
+            if what == "file":
+                body = open(fp, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", 'inline; filename="bill.pdf"')
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if what == "find":
+                pages = [int(x) for x in (qs.get("pages", [""])[0]).split(",") if x.strip().isdigit()][:60]
+                variants = [v for v in (qs.get("q", [""])[0]).split("||") if v.strip()][:8]
+                variants = [v[:120] for v in variants]
+                return self.send_json(pdfview.find(fp, pages, variants))
+            width = max(300, min(int(qs.get("w", ["1000"])[0]), 2400))
+            body = pdfview.render_page(fp, int(m.group(3)), width)
+        except ValueError as e:
+            return self.send_json({"error": str(e)}, 400)
+        except Exception as e:  # noqa: BLE001
+            return self.send_json({"error": "Could not read the PDF: " + str(e)[:150]}, 500)
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "private, max-age=3600")
+        self.end_headers()
+        self.wfile.write(body)
+
     def origin_ok(self) -> bool:
         origin = self.headers.get("Origin")
         if not origin:
@@ -183,7 +244,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         elif path == "/api/config":
             self.send_json({"serverKey": bool(os.environ.get("GEMINI_API_KEY")),
+                            "samplePdfs": [i for i in SAMPLE_IDS if os.path.exists(os.path.join(SAMPLES, i + ".pdf"))],
                             "executorModel": svc.EXECUTOR_MODEL, "evaluatorModel": svc.EVALUATOR_MODEL})
+        elif path.startswith("/api/pdf/"):
+            self.pdf_route(path, urlparse(self.path).query)
         elif path == "/api/docs":
             self.send_json(list_docs())
         elif path.startswith("/api/jobs/"):
@@ -263,10 +327,14 @@ class Handler(BaseHTTPRequestHandler):
         m = re.match(r"^/api/docs/([0-9a-f]{12})$", urlparse(self.path).path)
         if not m or not self.origin_ok():
             return self.send_json({"error": "not found"}, 404)
-        try:
-            os.remove(os.path.join(UPLOADS, m.group(1) + ".json"))
-        except FileNotFoundError:
-            pass
+        for ext in (".json", ".pdf"):
+            fp = os.path.join(UPLOADS, m.group(1) + ext)
+            if ext == ".pdf":
+                pdfview.drop(fp)
+            try:
+                os.remove(fp)
+            except FileNotFoundError:
+                pass
         self.send_json({"ok": True})
 
 
