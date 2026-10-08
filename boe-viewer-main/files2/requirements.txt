@@ -1,0 +1,4 @@
+pydantic-ai-slim[google]
+pymupdf
+pytest
+reportlab
