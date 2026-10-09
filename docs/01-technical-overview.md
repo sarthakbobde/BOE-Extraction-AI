@@ -73,14 +73,14 @@ model for loading the data later; nothing writes to it yet.
 
 1. **Browser** (`handleFile` → `runExtraction`): sends the raw PDF as the request body to `POST /api/extract` with headers
    `X-Gemini-Key` (from localStorage, never stored on the server), `X-Filename`, `X-Eval` (second-model check on/off).
-2. **Server** validates (starts with `%PDF`, ≤ 40 MB, key present), creates a job id, starts a thread, returns `{jobId}`.
+2. **Server** validates (starts with `%PDF`, ≤ 300 MB (`MAX_UPLOAD_MB`), key present), creates a job id, starts a thread, returns `{jobId}`.
 3. **Job thread** runs `asyncio.run(extract(...))` and updates a job record (`done/total/message`).
 4. **Browser** polls `GET /api/jobs/<id>` every second: progress bar, and the per-call cost events (printed to the
    browser console). The server prints the same cost lines to its own console / `server.log`.
 5. **`extract()`** (`extract_service.py`):
-   1. open the PDF (≤ 120 pages), build per-page text + PNG;
+   1. open the PDF (≤ 600 pages, `MAX_PAGES`), read every page's text, render a PNG only for pages sent to the model;
    2. classify each page into *kinds* (see §5);
-   3. run one agent call per (page, kind), 4 at a time, as `asyncio` tasks;
+   3. run one agent call per (page, kind), 12 at a time (`EXTRACT_CONCURRENCY`), retrying temporary errors (429/5xx/timeouts) up to 4 times, saving each finished page to `app/uploads/.cache/` so a failed run resumes, as `asyncio` tasks;
    4. `assemble()` core results into a `BoeExtraction`; `run_all_checks()`;
    5. optional evaluator (second model) on Part I–III pages;
    6. `score_fields()` → per-field scores;
@@ -144,7 +144,7 @@ Pure text rules on the page's text layer (no AI): a page can have several kinds.
 - Library: **pydantic-ai** (`Agent(model, output_type=Schema, instructions=…, retries=2)`), model settings
   `temperature=0`.
 - Input per call: the page **text layer** (as text) + the page **PNG at 150 dpi** (as an image part).
-- Concurrency: an `asyncio.Semaphore(4)`.
+- Concurrency: an `asyncio.Semaphore(12)` (`EXTRACT_CONCURRENCY`).
 - Default models: executor `gemini-3.8-flash`, evaluator `gemini-3.1-pro-preview`
   (`EXECUTOR_MODEL` / `EVALUATOR_MODEL` env vars).
 - The structured output is validated by pydantic: a malformed answer triggers a retry.
@@ -184,7 +184,7 @@ attaches confidence (see the AI document).
 
 `<id>` is a 12-hex bill id, or `D1` / `D2` for the sample bills (served from `app/samples/`).
 
-Limits: PDF ≤ 40 MB and ≤ 120 pages; report body ≤ 8 MB; edit body ≤ 200 KB.
+Limits: PDF ≤ 300 MB and ≤ 600 pages (both configurable); report body ≤ 8 MB; edit body ≤ 200 KB.
 
 ---
 

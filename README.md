@@ -79,6 +79,13 @@ cost of every call (`[cost ...]` lines).
    from the link under the list).
 5. Optional: turn on **Double-check with a second model** for a slower, costlier independent audit of every field.
 
+Large PDFs: only pages that contain BOE content are rendered and sent to Gemini, so file size mostly affects upload
+time and server memory (roughly the PDF size plus a few MB per extracted page). Raise the limits with `MAX_UPLOAD_MB` /
+`MAX_PAGES` before starting the server; cost scales with the number of BOE pages, not the file size.
+
+Resume: every finished page is saved under `app/uploads/.cache/`. If a run fails or is stopped, upload the same PDF
+again and finished pages are restored instead of re-billed. The cache is deleted when the bill completes.
+
 Uploaded bills are stored in `app/uploads/` as `<id>.json` (the extracted data) and `<id>.pdf` (the original file, kept so
 you can compare side by side). Deleting a bill removes both.
 
@@ -124,6 +131,11 @@ Defaults are set in `app/extract_service.py` and can be overridden with environm
 |---|---|---|
 | `EXECUTOR_MODEL` | `gemini-3.8-flash` | reads every page |
 | `EVALUATOR_MODEL` | `gemini-3.1-pro-preview` | optional second-model audit |
+| `MAX_UPLOAD_MB` | `300` | largest PDF the server accepts (the page shows this limit) |
+| `MAX_PAGES` | `600` | largest page count accepted |
+| `EXTRACT_CONCURRENCY` | `12` | Gemini calls run in parallel (raise for speed if your quota allows) |
+| `RENDER_DPI` | `150` | page image resolution; `110` is faster with slightly lower accuracy |
+| `EXTRACT_ATTEMPTS` | `4` | tries per page on temporary errors (rate limit, 5xx, timeout), with waiting between tries |
 
 Prices used for the cost lines are in `app/cost.py`; update them if Google changes pricing.
 

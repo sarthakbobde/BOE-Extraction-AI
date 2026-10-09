@@ -86,7 +86,7 @@ The model must answer in a pydantic schema; a malformed answer is retried (up to
 
 ### Why one call per page and kind
 Smaller, focused prompts are more accurate than one giant prompt, failures are isolated (one page can retry alone), and
-calls run 4 at a time. The cost is visible per call.
+calls run 12 at a time. The cost is visible per call.
 
 ---
 

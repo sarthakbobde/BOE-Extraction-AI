@@ -1787,6 +1787,7 @@ function render(){
 const API = { available:false, serverKey:false, samplePdfs:[] };
 const RAW = {};   // uploaded docs before HTML-escaping (used for the PDF report)
 const KEY_STORE = "boe_gemini_key";
+const CFG = { maxUploadMb:300 };   // overwritten from /api/config
 const UP = { busy:false, pct:0, msg:"", err:"", info:"", keyErr:"", fileName:"", done:null, pending:null, changingKey:false, checking:false };
 function getKey(){ try{ return localStorage.getItem(KEY_STORE)||""; }catch(e){ return ""; } }
 function setKey(k){ try{ if(k) localStorage.setItem(KEY_STORE,k); else localStorage.removeItem(KEY_STORE); }catch(e){} }
@@ -1859,7 +1860,7 @@ function dropzoneInner(){
   return '<div class="dz-icon">'+ic("up",26)+'</div>'
     + '<div class="dz-title">Drop a Bill of Entry PDF here</div>'
     + '<div class="dz-sub">or <button class="btn primary" onclick="pickPdf()">Choose file</button></div>'
-    + '<div class="dz-hint">PDF &middot; up to 40 MB &middot; Parts I&ndash;VI are read</div>';
+    + '<div class="dz-hint">PDF &middot; up to '+(CFG.maxUploadMb||300)+' MB &middot; Parts I&ndash;VI are read</div>';
 }
 
 function sidePanelHTML(){
@@ -1943,7 +1944,7 @@ function handleFile(file){
   UP.err=""; UP.info=""; UP.done=null;
   if(!API.available){ UP.err="Upload needs the local server. Run: python server.py, then open http://127.0.0.1:8765"; refreshUploadCard(); return; }
   if(!/\.pdf$/i.test(file.name) && file.type!=="application/pdf"){ UP.err="Please choose a PDF file."; refreshUploadCard(); return; }
-  if(file.size>40*1024*1024){ UP.err="That PDF is larger than 40 MB."; refreshUploadCard(); return; }
+  if(file.size>(CFG.maxUploadMb||300)*1024*1024){ UP.err="That PDF is larger than "+(CFG.maxUploadMb||300)+" MB."; refreshUploadCard(); return; }
   if(!hasKey()){
     UP.pending=file;
     refreshUploadCard(); const f=document.getElementById("keyField"); if(f) f.focus(); return;
@@ -2065,7 +2066,7 @@ function qualityHTML(doc){
 async function initApi(){
   try{
     const c=await fetch("/api/config"); if(!c.ok) return;
-    const cfg=await c.json(); API.available=true; API.serverKey=cfg.serverKey; API.samplePdfs=cfg.samplePdfs||[];
+    const cfg=await c.json(); API.available=true; API.serverKey=cfg.serverKey; API.samplePdfs=cfg.samplePdfs||[]; if(cfg.maxUploadMb) CFG.maxUploadMb=cfg.maxUploadMb;
     const docs=await (await fetch("/api/docs")).json();
     docs.forEach(ingestDoc);
     if(state.page==="list") render(); else refreshUploadCard();
