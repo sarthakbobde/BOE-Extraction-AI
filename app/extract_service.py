@@ -6,9 +6,12 @@ extra agents for the sections the viewer displays (status, declarant, manifest, 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import re
+import shutil
 import sys
+import threading
 from collections import defaultdict
 from typing import Callable
 
@@ -29,7 +32,11 @@ from viewer_schemas import (PART4_SECTIONS, InvoiceDetails, Part1Details, Part4P
 
 EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
 EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")
-MAX_PAGES = 120
+CONCURRENCY = int(os.getenv("EXTRACT_CONCURRENCY", "12"))   # parallel Gemini calls
+RENDER_DPI = int(os.getenv("RENDER_DPI", "150"))             # lower (e.g. 110) = faster, slightly less accurate
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", ".cache")
+ATTEMPTS = int(os.getenv("EXTRACT_ATTEMPTS", "4"))           # tries per page on temporary errors (429/5xx/timeouts)
+MAX_PAGES = int(os.getenv("MAX_PAGES", "600"))      # largest page count accepted
 
 DOUBT_RULE = ("\nConfidence: also fill `doubts` with ONLY the values you are not fully sure you read correctly (small or "
               "blurry print, ambiguous cell, possibly the wrong row or column). {how} Level 'medium' = some doubt, "
@@ -138,15 +145,24 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
         raise ExtractionError("bad_pdf", "That file could not be opened as a PDF.")
     if len(d) > MAX_PAGES:
         raise ExtractionError("too_big", f"PDF has {len(d)} pages; the limit is {MAX_PAGES}.")
-    pages = [core.Page(i + 1, p.get_text(), p.get_pixmap(dpi=150).tobytes("png")) for i, p in enumerate(d)]
-    page_map = {p.number: p for p in pages}
-    kinds = {p.number: classify_all(p.text) for p in pages}
+    # Read text for every page (cheap), but render page images only for pages that will be sent to the model:
+    # large PDFs are mostly irrelevant pages, and 150-dpi PNGs of all of them would exhaust memory.
+    progress(0, 0, f"Scanning {len(d)} pages", {})
+    texts = [p.get_text() for p in d]
+    kinds = {i + 1: classify_all(t) for i, t in enumerate(texts)}
     if not any("summary" in k for k in kinds.values()):
         raise ExtractionError("not_boe", "This does not look like an Indian Bill of Entry (no 'PART - I - BILL OF "
                                          "ENTRY SUMMARY' page found).")
+    pages = [core.Page(i + 1, texts[i], b"") for i in range(len(texts))]     # images are rendered on demand
+    page_map = {p.number: p for p in pages}
+    doc_lock = threading.Lock()                       # PyMuPDF documents are not thread-safe
+
+    def render(pn: int) -> bytes:
+        with doc_lock:
+            return d[pn - 1].get_pixmap(dpi=RENDER_DPI).tobytes("png")
 
     exec_model = model_for(EXECUTOR_MODEL, api_key)
-    sem = asyncio.Semaphore(4)
+    sem = asyncio.Semaphore(CONCURRENCY)
     core_agents = {k: core.make_executor(k, exec_model) for k in core.OUTPUT}
     extra_agents = {k: Agent(exec_model, output_type=EXTRA_OUTPUT[k], instructions=EXTRA_PROMPTS[k], retries=2,
                              model_settings=core.SETTINGS) for k in EXTRA_OUTPUT}
@@ -166,23 +182,78 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
 
     progress(0, total, "Reading pages", meter.snapshot())
 
+    # --- resume cache: every finished page is saved, so a failed/interrupted run restarts where it stopped
+    digest = hashlib.sha256(pdf + f"{EXECUTOR_MODEL}|{RENDER_DPI}".encode()).hexdigest()[:20]
+    cdir = os.path.join(CACHE_DIR, digest)
+    os.makedirs(cdir, exist_ok=True)
+    out_cls = {**core.OUTPUT, **EXTRA_OUTPUT}
+    remaining = defaultdict(int)                      # page -> kinds still to run (frees its image when 0)
+    for pn, k in jobs:
+        remaining[pn] += 1
+    keep_png = {pn for pn, k in jobs if with_eval and k in core.OUTPUT}    # evaluator re-reads these images
+    png_locks = {pn: asyncio.Lock() for pn in remaining}
+    cached_n = 0
+
+    async def get_png(pn: int) -> bytes:
+        async with png_locks[pn]:
+            pg = page_map[pn]
+            if not pg.png:
+                pg.png = await asyncio.to_thread(render, pn)
+            return pg.png
+
+    def release(pn: int):
+        remaining[pn] -= 1
+        if remaining[pn] <= 0 and pn not in keep_png:
+            page_map[pn].png = b""
+
+    async def call_with_retry(run):
+        for attempt in range(1, ATTEMPTS + 1):
+            try:
+                return await run()
+            except Exception as e:  # noqa: BLE001
+                status = getattr(e, "status_code", None)
+                temporary = status in (429, 500, 502, 503, 504) or isinstance(e, (TimeoutError, ConnectionError))
+                if not temporary or attempt == ATTEMPTS:
+                    raise
+                await asyncio.sleep(min(30, 2 ** attempt) + (hash((id(e), attempt)) % 100) / 100)
+
     async def one(pn: int, kind: str):
-        pg = page_map[pn]
-        content = [f"PAGE TEXT LAYER:\n{pg.text}", BinaryContent(pg.png, media_type="image/png")]
+        nonlocal cached_n
+        cf = os.path.join(cdir, f"p{pn}_{kind}.json")
+        if os.path.exists(cf):
+            try:
+                out = out_cls[kind].model_validate_json(open(cf, encoding="utf-8").read())
+                cached_n += 1
+                if pn in keep_png:
+                    await get_png(pn)                  # the evaluator still needs this page's image
+                release(pn)
+                tick(f"Page {pn} ({kind}) restored from earlier run")
+                return pn, kind, out
+            except Exception:  # noqa: BLE001
+                pass                                   # unreadable cache entry: just redo the page
         async with sem:
+            pg = page_map[pn]
+            content = [f"PAGE TEXT LAYER:\n{pg.text}", BinaryContent(await get_png(pn), media_type="image/png")]
             if kind in core_agents:
-                res = await core_agents[kind].run(content, deps=core.PageCtx(pg))
+                res = await call_with_retry(lambda: core_agents[kind].run(content, deps=core.PageCtx(pg)))
             else:
-                res = await extra_agents[kind].run(content)
+                res = await call_with_retry(lambda: extra_agents[kind].run(content))
         meter.add(f"p{pn} {kind}", EXECUTOR_MODEL, res.usage() if callable(res.usage) else res.usage)
+        with open(cf, "w", encoding="utf-8") as f:
+            f.write(res.output.model_dump_json())
+        release(pn)
         tick(f"Extracted page {pn} ({kind})")
         return pn, kind, res.output
 
     try:
-        results = await asyncio.gather(*[one(pn, k) for pn, k in jobs])
-    except Exception as e:  # noqa: BLE001
-        print(meter.summary_line().replace("DONE", "FAILED"), flush=True)
-        raise _friendly(e, api_key)
+        async with asyncio.TaskGroup() as tg:          # first hard failure cancels the rest (finished pages stay cached)
+            tasks = [tg.create_task(one(pn, k)) for pn, k in jobs]
+        results = [t.result() for t in tasks]
+    except* Exception as eg:  # noqa: BLE001
+        print(meter.summary_line().replace("DONE", "FAILED") + "  (finished pages are cached; re-upload to resume)",
+              flush=True)
+        raise _friendly(eg.exceptions[0], api_key)
+    d.close()
 
     by_page = {pn: (k, out) for pn, k, out in results if k in core.OUTPUT}
     # a page can only be one core kind, so by_page is keyed by page number
@@ -213,7 +284,8 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
                    for r in review[:60]],
         "checks": [{"check": i.check, "message": i.message} for i in issues[:60]],
     }
-    print(meter.summary_line(), flush=True)
+    print(meter.summary_line() + (f"  ({cached_n} pages restored from cache)" if cached_n else ""), flush=True)
+    shutil.rmtree(cdir, ignore_errors=True)         # extracted data is now saved as the bill; drop the resume cache
     section_pages = {"I": sorted(pn for pn, ks in kinds.items() if "summary" in ks or "part1" in ks),
                      "IV": sorted(pn for pn, ks in kinds.items() if "part4" in ks),
                      "V": sorted(pn for pn, ks in kinds.items() if "part5" in ks),

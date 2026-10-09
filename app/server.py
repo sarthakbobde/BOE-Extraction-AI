@@ -25,7 +25,20 @@ from report import build_report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UPLOADS = os.path.join(HERE, "uploads")
-MAX_BYTES = 40 * 1024 * 1024
+MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "300"))      # largest PDF accepted (default 300 MB)
+MAX_BYTES = MAX_MB * 1024 * 1024
+CHUNK = 1024 * 1024
+
+
+def read_body(rfile, length: int) -> bytes:
+    """Read a large request body in 1 MB chunks (avoids one huge blocking read)."""
+    buf = bytearray()
+    while len(buf) < length:
+        chunk = rfile.read(min(CHUNK, length - len(buf)))
+        if not chunk:
+            raise ConnectionError("Upload was interrupted.")
+        buf.extend(chunk)
+    return bytes(buf)
 ID_RE = re.compile(r"^[0-9a-f]{12}$")
 SAMPLE_IDS = ("D1", "D2")           # sample bills: PDFs live in app/samples/<id>.pdf (not committed)
 SAMPLES = os.path.join(HERE, "samples")
@@ -249,7 +262,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/config":
             self.send_json({"serverKey": bool(os.environ.get("GEMINI_API_KEY")),
                             "samplePdfs": [i for i in SAMPLE_IDS if os.path.exists(os.path.join(SAMPLES, i + ".pdf"))],
-                            "executorModel": svc.EXECUTOR_MODEL, "evaluatorModel": svc.EVALUATOR_MODEL})
+                            "executorModel": svc.EXECUTOR_MODEL, "evaluatorModel": svc.EVALUATOR_MODEL,
+                            "maxUploadMb": MAX_MB, "maxPages": svc.MAX_PAGES})
         elif path.startswith("/api/pdf/"):
             self.pdf_route(path, urlparse(self.path).query)
         elif path == "/api/docs":
@@ -313,8 +327,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"code": "no_key", "error": "No AI Key provided."}, 400)
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > MAX_BYTES:
-            return self.send_json({"code": "too_big", "error": "PDF must be between 1 byte and 40 MB."}, 413)
-        pdf = self.rfile.read(length)
+            return self.send_json({"code": "too_big", "error": f"PDF must be between 1 byte and {MAX_MB} MB."}, 413)
+        try:
+            pdf = read_body(self.rfile, length)
+        except ConnectionError as e:
+            return self.send_json({"code": "interrupted", "error": str(e)}, 400)
         if not pdf.startswith(b"%PDF"):
             return self.send_json({"code": "bad_pdf", "error": "That file is not a PDF."}, 400)
         filename = unquote(self.headers.get("X-Filename", "upload.pdf"))[:200]
@@ -346,5 +363,5 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
-    print(f"BOE viewer on http://127.0.0.1:{args.port}  (models: {svc.EXECUTOR_MODEL} / {svc.EVALUATOR_MODEL})")
+    print(f"BOE viewer on http://127.0.0.1:{args.port}  (models: {svc.EXECUTOR_MODEL} / {svc.EVALUATOR_MODEL}; limits: {MAX_MB} MB, {svc.MAX_PAGES} pages)")
     ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
