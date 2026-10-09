@@ -34,6 +34,7 @@ from schemas import BoeExtraction, DutyPage, InvoicePage, SummaryPage, flatten
 EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
 EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")   # different model = fewer shared blind spots
 REVIEW_THRESHOLD = 0.8
+MODEL_CAP = {"medium": 0.7, "low": 0.4}      # the model's own doubt caps the score (High >= 0.8, Medium >= 0.5, Low < 0.5)
 SETTINGS = ModelSettings(temperature=0.0)
 
 
@@ -74,14 +75,26 @@ Rules:
 - A blank cell is null. A printed 0 is "0".
 - Columns are easy to confuse (BCD / SWS / IGST / CAIDC). Follow the column header strictly.
 - Process every row/item on the page; do not skip or merge repeated identical rows.
+- Every value has a `conf` field: leave it 'high' when you read the value clearly in the right cell; use 'medium' or
+  'low' only when you genuinely doubt it (small or blurry print, ambiguous row or column).
 """
 
 PROMPTS = {
-    "summary": COMMON + "This is Part I (summary). Exchange rate may be 'per 100 units' (e.g. 100 JPY=58.65INR).",
+    "summary": COMMON + "This is Part I (summary). Exchange rate may be 'per 100 units' (e.g. 100 JPY=58.65INR). "
+                        "Read EVERY cell of C. DUTY SUMMARY (1.BCD ... 19.TOT. AMOUNT): a blank cell is null, a printed 0 is '0'.",
     "invoice": COMMON + "This is Part II. First pages of an invoice have sections A-D plus items; continuation pages "
                         "have only A and the item table (set header=null). 14.Cur may show two currencies: "
-                        "invoice currency then freight currency.",
-    "duties": COMMON + "This is Part III. Each block is one item. Read only the B. ITEM DUTY table for rate/amount.",
+                        "invoice currency then freight currency. In D. COST & SERVICES read every cell 1.C&B to "
+                        "14.ASS. VALUE (blank = null).",
+    "duties": COMMON + "This is Part III. Each item is a block with three sections, read ALL of them:\n"
+                       "A. ITEM DETAILS: 30 numbered fields over three rows (1.INVSNO ... 28.SUP DOCS, 29.ASSESS VALUE, "
+                       "30.TOTAL DUTY); blank cell = null.\n"
+                       "B. ITEM DUTY, C. OTHER DUTIES and C. OTHER DUTIES - A are matrices: one COLUMN per duty (B: BCD, "
+                       "CVD_05 (printed as 2.ACD on the 2025 form version: use the printed heading), SWS, SAD, IGST, G.CESS, ADD, CVD, SG, T.VALUE; C: SP EXD, CHCESS, TTA, CESS, CAIDC, EAIDC, "
+                       "CUS EDC, CUS HEC, NCD, AGGR; C-A: OTHCUS, OTHCVD, PETR CUS, INFRA CES, CUS CVD) and five ROWS "
+                       "(Notn No., Notn SNo., Rate, Amount, Duty Fg). Return one entry per column that has at least one "
+                       "non-blank cell, with each row's value (null if that cell is blank). Take every value from the "
+                       "column directly under its heading; the Duty Fg row holds amounts, not flags.",
 }
 OUTPUT = {"summary": SummaryPage, "invoice": InvoicePage, "duties": DutyPage}
 
@@ -216,6 +229,9 @@ def score_fields(ex: BoeExtraction, pages: dict[int, Page], issues: list[Issue],
                 score -= 0.2; reasons.append("evaluator gave no verdict")
             elif not v.supported:
                 score -= 0.4; reasons.append(f"evaluator: {v.reason or 'not supported'}")
+        cap = MODEL_CAP.get(getattr(ev, "conf", "high"))
+        if cap is not None:
+            score = min(score, cap); reasons.append(f"AI is not fully sure ({ev.conf})")
         rows.append({"path": path, "value": ev.value, "page": page_for(path, ex.page_of),
                      "score": round(max(score, 0.0), 2), "reasons": reasons,
                      "status": "needs_review" if score < REVIEW_THRESHOLD else "auto_accepted"})

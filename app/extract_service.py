@@ -20,6 +20,7 @@ from pydantic_ai.models.google import GoogleModel  # noqa: E402
 from pydantic_ai.providers.google import GoogleProvider  # noqa: E402
 
 import pipeline as core  # noqa: E402
+from sections import part4_letters  # noqa: E402
 from cost import CostMeter  # noqa: E402
 from checks import run_all_checks  # noqa: E402
 from to_viewer import build_doc  # noqa: E402
@@ -30,12 +31,20 @@ EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
 EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")
 MAX_PAGES = 120
 
+DOUBT_RULE = ("\nConfidence: also fill `doubts` with ONLY the values you are not fully sure you read correctly (small or "
+              "blurry print, ambiguous cell, possibly the wrong row or column). {how} Level 'medium' = some doubt, "
+              "'low' = a guess. Leave `doubts` empty when you are sure of everything.")
+
 EXTRA_PROMPTS = {
-    "part1": core.COMMON + "This is Part I. Extract the header, status flags, declarant, manifest, payment, processing "
-                           "events and container rows. Status flags are single letters (Y/N/T/F/P). "
-                           "Events: list every row of H. PROCESSING DETAILS that has a date.",
-    "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract sections A (invoice no/date), "
-                                 "B (transacting parties) and C (valuation). Join multi-line addresses with ', '.",
+    "part1": core.COMMON + "This is Part I. Extract the header, ALL of A. STATUS (fields 1-16, flags are single letters "
+                           "Y/N/T/F/P), B. DECLARANT (incl. AEO, UCR), D. MANIFEST (IGM no/date, INW date, GIGM no/date, "
+                           "MAWB, HAWB, packages, gross weight), E. BOND DETAILS rows, F. PAYMENT rows, G. WH rows, "
+                           "H. PROCESSING events (plus the OOC NO. and OOC DATE printed there) and J. CONTAINER rows. A section that is blank on the page gives an "
+                           "empty list / null values. Events: list every row of H. PROCESSING DETAILS that has a date.",
+    "inv_details": core.COMMON + "This is the first page of a Part II invoice. Extract section A (1.S.NO, 2.INVOICE NO & DT, "
+                                 "3.PURCHASE ORDER NO & DT, 4.LC NO & DATE, 5.CONTRACT NO & DATE, 6.AD CODE), B (transacting "
+                                 "parties incl. 5.AEO) and C (valuation). Join multi-line addresses with ', '. Split a "
+                                 "combined 'number & date' cell into its number and its date.",
     "part4": core.COMMON + "This is a Part IV (additional details) page. Section LETTERS differ between form versions, so "
                            "identify each section by its printed TITLE. One list entry per printed DATA row; printed "
                            "column headers and the glossary are not data. Extract: (1) the SUPPORTING DOCUMENTS section "
@@ -53,6 +62,12 @@ EXTRA_PROMPTS = {
     "part6": core.COMMON + "This is Part VI. Extract every 'Declaration for N/M' paragraph (text with whitespace "
                            "normalised) and the authorised signatory CHA name, date and place.",
 }
+EXTRA_PROMPTS["part1"] += DOUBT_RULE.format(how="`field` is the schema field path, e.g. 'status.kaccha', 'declarant.ucr', "
+                                           "'manifest.igm_no', 'header.be_type', 'payments[0].amount', "
+                                           "'events[1].time', 'ooc_no'.")
+EXTRA_PROMPTS["inv_details"] += DOUBT_RULE.format(how="`field` is the attribute name, e.g. 'buyer', 'lc_no', 'svb_date'.")
+EXTRA_PROMPTS["part4"] += DOUBT_RULE.format(how="`field` is '<section code>[<row number counting from 0 on this page>]."
+                                                "<column number counting from 1>', e.g. 'licence[0].4'.")
 EXTRA_OUTPUT = {"part1": Part1Details, "inv_details": InvoiceDetails, "part4": Part4Page, "part5": Part5Page,
                 "part6": Part6Page}
 
@@ -199,4 +214,11 @@ async def extract(pdf: bytes, filename: str, api_key: str, with_eval: bool,
         "checks": [{"check": i.check, "message": i.message} for i in issues[:60]],
     }
     print(meter.summary_line(), flush=True)
-    return build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages))
+    section_pages = {"I": sorted(pn for pn, ks in kinds.items() if "summary" in ks or "part1" in ks),
+                     "IV": sorted(pn for pn, ks in kinds.items() if "part4" in ks),
+                     "V": sorted(pn for pn, ks in kinds.items() if "part5" in ks),
+                     "VI": sorted(pn for pn, ks in kinds.items() if "part6" in ks)}
+    out = build_doc(ex, extras, quality, filename, field_rows=rows, full_text="\n".join(pg.text for pg in pages),
+                     section_pages=section_pages, page_count=len(pages))
+    out["sectionLetters"] = part4_letters([pg.text for pg in pages])     # printed Part IV letters (vary by form version)
+    return out

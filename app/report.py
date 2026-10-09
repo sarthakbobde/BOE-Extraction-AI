@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import os
+from decimal import Decimal
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -123,21 +124,46 @@ def build_report(doc: dict) -> bytes:
                     ("Packages / gross weight (kg)", f"{t(boe.get('totalPackages'))} / {t(boe.get('grossWeightKg'))}"),
                     ("Barcode ref", t(boe.get("barcode")))], W))
     S.append(p("A. Status", "h2"))
-    S.append(sheet([("BE status", t(st.get("beStatus"))), ("Mode", t(st.get("mode"))), ("Assess / Exam / HSS", f"{t(st.get('assess'))} / {t(st.get('exam'))} / {t(st.get('hss'))}"),
-                    ("First check / Prov-Final", f"{t(st.get('firstCheck'))} / {t(st.get('provFinal'))}"),
-                    ("Country of origin", t(st.get("countryOfOrigin"))), ("Country of consignment", t(st.get("countryOfConsignment"))),
-                    ("Port of loading", t(st.get("portOfLoading"))), ("Port of shipment", t(st.get("portOfShipment")))], W))
+    S.append(sheet([("1. BE status", t(st.get("beStatus"))), ("2. Mode", t(st.get("mode"))),
+                    ("3. Def BE / 4. Kaccha / 5. Sec 48", f"{t(st.get('defBe'))} / {t(st.get('kaccha'))} / {t(st.get('sec48'))}"),
+                    ("6. Reimp / 7. Adv BE", f"{t(st.get('reimp'))} / {t(st.get('advBe'))}"),
+                    ("8. Assess / 9. Exam / 10. HSS", f"{t(st.get('assess'))} / {t(st.get('exam'))} / {t(st.get('hss'))}"),
+                    ("11. First check / 12. Prov-Final", f"{t(st.get('firstCheck'))} / {t(st.get('provFinal'))}"),
+                    ("13. Country of origin", t(st.get("countryOfOrigin"))), ("14. Country of consignment", t(st.get("countryOfConsignment"))),
+                    ("15. Port of loading", t(st.get("portOfLoading"))), ("16. Port of shipment", t(st.get("portOfShipment")))], W))
     S.append(p("B. Declarant", "h2"))
-    S.append(sheet([("Importer", t(dc.get("importerName"))), ("Address", t(dc.get("importerAddress"))),
-                    ("CB name", t(dc.get("cbName"))), ("AD code", t(dc.get("adCode")))], W))
+    S.append(sheet([("1. Importer", t(dc.get("importerName"))), ("Address", t(dc.get("importerAddress"))),
+                    ("2. CB name", t(dc.get("cbName"))), ("3. AEO", t(dc.get("aeo"))), ("4. UCR", t(dc.get("ucr"))),
+                    ("AD code", t(dc.get("adCode")))], W))
     S.append(p("C. Duty summary", "h2"))
-    S.append(sheet([("BCD", money(ds.get("bcd"))), ("SWS", money(ds.get("sws"))), ("IGST", money(ds.get("igst"))),
-                    ("Total assessable value", money(ds.get("totalAssessableValue"))), ("Total duty", money(ds.get("totalDuty"))),
-                    ("Total amount", money(ds.get("totalAmount")))], W))
+    S.append(sheet([("1. BCD", money(ds.get("bcd"))), ("2. ACD", money(ds.get("acd"))), ("3. SWS", money(ds.get("sws"))),
+                    ("4. NCCD", money(ds.get("nccd"))), ("5. ADD", money(ds.get("add"))), ("6. CVD", money(ds.get("cvd"))),
+                    ("7. IGST", money(ds.get("igst"))), ("8. G.CESS", money(ds.get("gCess"))), ("9. SG", money(ds.get("sg"))),
+                    ("10. SAED", money(ds.get("saed"))), ("11. GSIA", money(ds.get("gsia"))), ("12. TTA", money(ds.get("tta"))),
+                    ("13. Health", money(ds.get("health"))), ("14. Total duty", money(ds.get("totalDuty"))),
+                    ("15. Interest", money(ds.get("interest"))), ("16. Penalty", money(ds.get("penalty"))), ("17. Fine", money(ds.get("fine"))),
+                    ("18. Total assessable value", money(ds.get("totalAssessableValue"))), ("19. Total amount", money(ds.get("totalAmount")))], W))
     S.append(p("D. Manifest", "h2"))
-    S.append(sheet([("MAWB no. / date", f"{t(mf.get('mawbNo'))} · {t(mf.get('mawbDate'))}"),
-                    ("HAWB no. / date", f"{t(mf.get('hawbNo'))} · {t(mf.get('hawbDate'))}"),
-                    ("Packages / gross weight (kg)", f"{t(mf.get('packages'))} / {t(mf.get('grossWeightKg'))}")], W))
+    S.append(sheet([("1. IGM no. / 2. date", f"{t(mf.get('igmNo'))} · {t(mf.get('igmDate'))}"),
+                    ("3. INW date", t(mf.get("inwDate"))),
+                    ("4. GIGM no. / 5. date", f"{t(mf.get('gigmNo'))} · {t(mf.get('gigmDate'))}"),
+                    ("6. MAWB no. / 7. date", f"{t(mf.get('mawbNo'))} · {t(mf.get('mawbDate'))}"),
+                    ("8. HAWB no. / 9. date", f"{t(mf.get('hawbNo'))} · {t(mf.get('hawbDate'))}"),
+                    ("10. Packages / 11. Gross weight (kg)", f"{t(mf.get('packages'))} / {t(mf.get('grossWeightKg'))}")], W))
+    S.append(p("E. Bond details", "h2"))
+    if doc.get("bonds"):
+        S.append(grid(["Bond no.", "Port", "Bond cd", "Debt amt", "BG amt"],
+                      [[t(x.get("bondNo")), t(x.get("port")), t(x.get("bondCd")), money(x.get("debtAmt")), money(x.get("bgAmt"))] for x in doc["bonds"]],
+                      [W * .25, W * .2, W * .15, W * .2, W * .2], {3, 4}))
+    else:
+        S.append(p("None declared." if isinstance(doc.get("bonds"), list) else "Not extracted for this bill.", "note"))
+    S.append(p("G. Warehouse details", "h2"))
+    if doc.get("warehouse"):
+        S.append(grid(["WBE no.", "Date", "WBE site", "WH code"],
+                      [[t(x.get("wbeNo")), t(x.get("date")), t(x.get("site")), t(x.get("whCode"))] for x in doc["warehouse"]],
+                      [W * .3, W * .25, W * .25, W * .2]))
+    else:
+        S.append(p("None declared." if isinstance(doc.get("warehouse"), list) else "Not extracted for this bill.", "note"))
     if doc.get("payments"):
         S.append(p("F. Payment", "h2"))
         S.append(grid(["Sr", "Challan no.", "Paid on", "Amount (INR)"],
@@ -148,6 +174,9 @@ def build_report(doc: dict) -> bytes:
         S.append(grid(["Event", "Date", "Time", "Exchange rate"],
                       [[t(x.get("event")), t(x.get("date")), t(x.get("time")), t(x.get("rate"))] for x in doc["events"]],
                       [W * .25, W * .25, W * .15, W * .35]))
+    pr = doc.get("processing") or {}
+    if pr.get("oocNo") or pr.get("oocDate"):
+        S.append(sheet([("OOC no.", t(pr.get("oocNo"))), ("OOC date", t(pr.get("oocDate")))], W))
     S.append(p("J. Containers", "h2"))
     if doc.get("containers"):
         S.append(grid(["Sno", "LCL/FCL", "Truck", "Seal", "Container no."],
@@ -162,19 +191,29 @@ def build_report(doc: dict) -> bytes:
         S.append(PageBreak())
         S.append(p(f"Part II — Invoice &amp; valuation · Invoice {t(inv.get('sno'))}/{n}", "h1"))
         pt, v, c = inv.get("parties") or {}, inv.get("valuation") or {}, inv.get("cost") or {}
-        S.append(sheet([("Invoice no. / date", f"{t(inv.get('no'))} · {t(inv.get('date'))}"),
+        S.append(p("A. Invoice", "h2"))
+        S.append(sheet([("1. S. no.", t(inv.get("sno"))), ("2. Invoice no. / date", f"{t(inv.get('no'))} · {t(inv.get('date'))}"),
+                        ("3. Purchase order no. / date", f"{t(inv.get('poNo'))} · {t(inv.get('poDate'))}"),
+                        ("4. LC no. / date", f"{t(inv.get('lcNo'))} · {t(inv.get('lcDate'))}"),
+                        ("5. Contract no. / date", f"{t(inv.get('contractNo'))} · {t(inv.get('contractDate'))}"),
+                        ("6. AD code", t(inv.get("adCode"))),
                         ("Invoice amount", money(inv.get("amount"), inv.get("currency")))], W))
         S.append(p("B. Transacting parties", "h2"))
         S.append(sheet([("Buyer", t(pt.get("buyer"))), ("Seller", t(pt.get("seller"))), ("Supplier", t(pt.get("supplier"))),
-                        ("Third party", t(pt.get("thirdParty")))], W))
+                        ("Third party", t(pt.get("thirdParty"))), ("5. AEO", t(pt.get("aeo")))], W))
         S.append(p("C. Valuation", "h2"))
         S.append(sheet([("Invoice value", money(v.get("invoiceValue"), inv.get("currency"))), ("Freight", money(v.get("freight"))),
                         ("Insurance", t(v.get("insurance"))), ("Pay terms", t(v.get("payTerms"))),
                         ("Valuation method", t(v.get("valuationMethod"))), ("Related party", t(v.get("relatedParty"))),
                         ("SVB ch / no / date", f"{t(v.get('svbCh'))} / {t(v.get('svbNo'))} / {t(v.get('svbDate'))}"),
+                        ("14. Cur (invoice / freight)", f"{t(inv.get('valuation', {}).get('currency'))} / {t(v.get('freightCurrency'))}"),
                         ("Incoterm", t(v.get("incoterm")))], W))
         S.append(p("D. Cost &amp; services", "h2"))
-        S.append(sheet([("Misc. charge", money(c.get("miscCharge"))), ("Assessable value", money(c.get("assessValue")))], W))
+        S.append(sheet([("1. C&B", money(c.get("cb"))), ("2. CoC", money(c.get("coc"))), ("3. CoP", money(c.get("cop"))),
+                        ("4. HND CHG", money(c.get("hndChg"))), ("5. G&S", money(c.get("gs"))), ("6. DOC. CH", money(c.get("docCh"))),
+                        ("7. COO", money(c.get("coo"))), ("8. R & LF", money(c.get("rlf"))), ("9. OTH COST", money(c.get("othCost"))),
+                        ("10. LD / ULD", money(c.get("ldUld"))), ("11. WS", money(c.get("ws"))), ("12. OTC", money(c.get("otc"))),
+                        ("13. Misc. charge", money(c.get("miscCharge"))), ("14. Assessable value", money(c.get("assessValue")))], W))
         items = inv.get("items") or []
         S.append(p(f"E. Item details ({len(items)})", "h2"))
         S.append(grid(["#", "CTH", "Description", "Unit price", "Qty", "Amount"],
@@ -186,30 +225,78 @@ def build_report(doc: dict) -> bytes:
     if have_duties:
         S.append(PageBreak())
         S.append(p("Part III — Duties", "h1"))
+        GROUPS = [("B. Item duty", [("bcd", "BCD"), ("cvd05", "CVD_05"), ("acd", "ACD"), ("sws", "SWS"), ("sad", "SAD"), ("igst", "IGST"), ("gcess", "G.CESS"),
+                                    ("add", "ADD"), ("cvd", "CVD"), ("sg", "SG"), ("tvalue", "T.VALUE")]),
+                  ("C. Other duties", [("spexd", "SP EXD"), ("chcess", "CHCESS"), ("tta", "TTA"), ("cess", "CESS"), ("caidc", "CAIDC"),
+                                       ("eaidc", "EAIDC"), ("cusedc", "CUS EDC"), ("cushec", "CUS HEC"), ("ncd", "NCD"), ("aggr", "AGGR")]),
+                  ("C-A. Other duties - A", [("othcus", "OTHCUS"), ("othcvd", "OTHCVD"), ("petrcus", "PETR CUS"), ("infraces", "INFRA CES"),
+                                             ("cuscvd", "CUS CVD")])]
+        FLAGS = [("fs", "FS"), ("pq", "PQ"), ("dc", "DC"), ("wc", "WC"), ("aq", "AQ"), ("sch", "SCH"), ("stndPr", "STND/PR"), ("rsp", "RSP"),
+                 ("reimp", "REIMP"), ("prov", "PROV"), ("endUse", "END USE"), ("prodn", "PRODN"), ("cntrl", "CNTRL"), ("qualfr", "QUALFR"),
+                 ("contnt", "CONTNT"), ("stmnt", "STMNT"), ("supDocs", "SUP DOCS")]
+        def raw(v):                                     # a number exactly as it was printed (no 6-digit rounding)
+            if v is None:
+                return ""
+            if isinstance(v, float):
+                s_ = format(Decimal(repr(v)), "f")
+                return s_.rstrip("0").rstrip(".") if "." in s_ else s_
+            return str(v)
+
+        def duty_cell(x, key):
+            """rate / amount, with the notification and duty-foregone rows underneath, as printed."""
+            r, a_, nn, ns, fg = (x.get(key + k) for k in ("Rate", "Amount", "NotnNo", "NotnSno", "DutyFg"))
+            if all(v is None for v in (r, a_, nn, ns, fg)):
+                return "—"
+            lines = []
+            if r is not None or a_ is not None:
+                lines.append(escape(f"{raw(r)}% / {raw(a_)}" if r is not None and a_ is not None else
+                                    (f"{raw(r)}%" if r is not None else raw(a_))))
+            if nn is not None or ns is not None:
+                lines.append(escape(f"notn {raw(nn)} {raw(ns)}".strip()))
+            if fg is not None:
+                lines.append(escape(f"duty fg {raw(fg)}"))
+            return "<br/>".join(lines)
+
         for inv in doc["invoices"]:
             d = inv.get("duties") or {}
             if not d:
                 continue
             ks = sorted(d, key=lambda k: int(k) if str(k).isdigit() else 0)
-            tot = {"a": 0.0, "b": 0.0, "s": 0.0, "i": 0.0, "d": 0.0}
+            S.append(p(f"Invoice {t(inv.get('sno'))} — A. Item details", "h2"))
+            tot_a = sum(d[k].get("assessValue") or 0 for k in ks)
+            tot_d = sum(d[k].get("totalDuty") or 0 for k in ks)
             rows = []
-            rate = lambda r: "" if r is None else f"{r:g}%"  # noqa: E731
             for k in ks:
                 x = d[k]
-                tot["a"] += x.get("assessValue") or 0
-                tot["b"] += x.get("bcdAmount") or 0
-                tot["s"] += x.get("swsAmount") or 0
-                tot["i"] += x.get("igstAmount") or 0
-                tot["d"] += x.get("totalDuty") or 0
-                rows.append([t(k), t(x.get("cth")), money(x.get("assessValue")), rate(x.get("bcdRate")), money(x.get("bcdAmount")),
-                             money(x.get("swsAmount")), rate(x.get("igstRate")), money(x.get("igstAmount")), money(x.get("totalDuty"))])
-            S.append(p(f"Invoice {t(inv.get('sno'))} — item duties", "h2"))
-            S.append(grid(["Item", "CTH", "Assess value", "BCD %", "BCD", "SWS", "IGST %", "IGST", "Total duty"], rows,
-                          [W * .06, W * .11, W * .15, W * .08, W * .12, W * .1, W * .08, W * .14, W * .16], {2, 3, 4, 5, 6, 7, 8},
-                          foot=["Total", f"{len(ks)} items", money(tot["a"]), "", money(tot["b"]), money(tot["s"]), "", money(tot["i"]), money(tot["d"])]))
+                flags = " · ".join(f"{lab} {x[key]}" for key, lab in FLAGS if x.get(key) not in (None, ""))
+                rows.append([t(k), t(x.get("cth")), t(x.get("ceth")), t(raw(x.get("upi")) or None), t(x.get("coo")),
+                             t((raw(x.get("cQty")) + " " + (x.get("cUqc") or "")).strip() or None),
+                             t((raw(x.get("sQty")) + " " + (x.get("sUqc") or "")).strip() or None), escape(flags) or "—",
+                             money(x.get("assessValue")), money(x.get("totalDuty"))])
+            S.append(grid(["Item", "CTH", "CETH", "UPI", "COO", "C.QTY", "S.QTY", "Other fields (6-28)", "Assess value", "Total duty"], rows,
+                          [W * .06, W * .11, W * .12, W * .09, W * .06, W * .08, W * .08, W * .14, W * .13, W * .13], {8, 9},
+                          foot=["Total", f"{len(ks)} items", "", "", "", "", "", "", money(tot_a), money(tot_d)]))
+            for title, cols in GROUPS:
+                present = [(key, lab) for key, lab in cols
+                           if any(any(d[k].get(key + sfx) is not None for sfx in ("Rate", "Amount", "NotnNo", "NotnSno", "DutyFg")) for k in ks)]
+                if not present:
+                    continue
+                S.append(p(f"Invoice {t(inv.get('sno'))} — {title}", "h2"))
+                n = len(present)
+                S.append(grid(["Item"] + [lab for _, lab in present], [[t(k)] + [duty_cell(d[k], key) for key, _ in present] for k in ks],
+                              [W * .07] + [W * .93 / n] * n))
 
-    # ---------------- Part IV
-    S.append(p("Part IV — Supporting documents", "h1"))
+    # ---------------- Part IV (same order as the PDF: the A-L sections, then supporting docs, containers, invoices)
+    S.append(p("Part IV — Additional details", "h1"))
+    from viewer_schemas import PART4_SECTIONS
+    order = list(PART4_SECTIONS)
+    for sec in sorted(doc.get("additional") or [], key=lambda x: order.index(x["code"]) if x.get("code") in order else 99):
+        cols = sec.get("columns") or []
+        n = max(len(cols), 1)
+        S.append(p(t(sec.get('title')), "h2"))
+        S.append(grid([escape(c) for c in cols], [[t(c) for c in r] for r in sec.get("rows") or []], [W / n] * n))
+
+    S.append(p("Supporting documents", "h2"))
     sd = doc.get("supportingDocs") or []
     if sd:
         def scope(x):
@@ -221,11 +308,17 @@ def build_report(doc: dict) -> bytes:
     else:
         S.append(p("None declared.", "note"))
 
-    for sec in doc.get("additional") or []:
-        cols = sec.get("columns") or []
-        n = max(len(cols), 1)
-        S.append(p(t(sec.get('title')), "h2"))
-        S.append(grid([escape(c) for c in cols], [[t(c) for c in r] for r in sec.get("rows") or []], [W / n] * n))
+    S.append(p("Container details", "h2"))
+    if doc.get("containers"):
+        S.append(grid(["Container no.", "Truck", "Seal", "LCL / FCL", "Sno"],
+                      [[t(c.get("containerNumber")), t(c.get("truck")), t(c.get("seal")), t(c.get("lclFcl")), t(c.get("sno"))]
+                       for c in doc["containers"]], [W * .3, W * .2, W * .2, W * .15, W * .15]))
+    else:
+        S.append(p("None declared.", "note"))
+    S.append(p("Invoice details", "h2"))
+    S.append(grid(["S no.", "Invoice no.", "Invoice amount", "Cur"],
+                  [[t(i.get("sno")), t(i.get("no")), money(i.get("amount")), t(i.get("currency"))] for i in doc.get("invoices") or []],
+                  [W * .12, W * .38, W * .3, W * .2], {2}))
 
     # ---------------- Part V
     S.append(p("Part V — Other compliances", "h1"))

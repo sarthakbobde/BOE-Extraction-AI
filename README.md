@@ -79,7 +79,8 @@ cost of every call (`[cost ...]` lines).
    from the link under the list).
 5. Optional: turn on **Double-check with a second model** for a slower, costlier independent audit of every field.
 
-Uploaded bills are stored as JSON in `app/uploads/`. The original PDF is not kept.
+Uploaded bills are stored in `app/uploads/` as `<id>.json` (the extracted data) and `<id>.pdf` (the original file, kept so
+you can compare side by side). Deleting a bill removes both.
 
 ### Confidence scores and editing
 
@@ -96,6 +97,20 @@ Uploaded bills are stored as JSON in `app/uploads/`. The original PDF is not kep
   - Sample bills: edits are kept in this browser only (localStorage).
 - The PDF report uses the edited values. Bills uploaded before this feature have no scores; upload them again to get them.
 
+### Side-by-side source PDF
+
+On a bill's detail page, **Show source PDF** (left menu) opens the original PDF beside the data.
+
+- It follows what you're looking at: switching section jumps to that part's page, and clicking a field (or a table
+  cell, or opening an item) jumps to the page it came from and **highlights where the value is printed**.
+- The PDF is one **continuous scroll** (all pages stacked; images load as you scroll). The counter in the header follows
+  your position; the page arrows, zoom, Fit and **Open** (the full PDF in a new tab) are there too.
+- Editing a field does not move you: the PDF keeps its place.
+- Pages are rendered by the server (PyMuPDF), so no browser PDF plugin is needed. Page sizes are sent first so the
+  layout does not jump while images load.
+- Bills uploaded before PDFs were kept show "Source PDF was not kept" - upload them again.
+- The two sample bills use `app/samples/D1.pdf` and `D2.pdf` (git-ignored; copy the sample PDFs there to enable it).
+
 ### Cost in the browser console
 
 Open DevTools (F12) → **Console** before uploading. Each Gemini call prints its tokens and cost, with a running total
@@ -111,6 +126,29 @@ Defaults are set in `app/extract_service.py` and can be overridden with environm
 | `EVALUATOR_MODEL` | `gemini-3.1-pro-preview` | optional second-model audit |
 
 Prices used for the cost lines are in `app/cost.py`; update them if Google changes pricing.
+
+## Documentation
+
+- [`docs/01-technical-overview.md`](docs/01-technical-overview.md) - architecture, data flow, API, front end, storage, how to extend.
+- [`docs/02-how-the-ai-decides.md`](docs/02-how-the-ai-decides.md) - how pages are read, checked and scored, and what a score means.
+
+## What is extracted (every printed field)
+
+The viewer mirrors the PDF section by section, in the PDF's order and with its printed letters (Part IV letters are read
+from each PDF because they differ between form versions):
+
+- **Part I:** A Status (1-16), B Declarant (incl. AEO, UCR), C Duty summary (1-19), D Manifest (IGM, INW, GIGM, MAWB, HAWB),
+  E Bond details, F Payment, G Warehouse, H Processing, I Invoice summary, J Containers.
+- **Part II:** A Invoice (incl. PO / LC / contract / AD code), B Parties (incl. AEO), C Valuation (both currencies),
+  D Cost & services (1-14), E Items.
+- **Part III:** per item, A Item details (fields 1-30), B Item duty, C Other duties, C-A Other duties - A (each a matrix of
+  duty columns x Notn No., Notn SNo., Rate, Amount, Duty Fg).
+- **Part IV:** every section the form prints (A-L, supporting documents, containers, invoice details).
+- **Part V / VI:** examination order (A and A1), instructions, PGA, compliance, remarks, OOC; declarations and signatory.
+
+Bills extracted before this schema (no `schema: 2` in their JSON) show a "partial" / "not extracted" tag on the
+sections that were not read; upload them again to get every field. The full list of fields per section is in
+`files1/boe_schema.sql` (database) and `files2/schemas.py` (extraction).
 
 ## How the data is rechecked
 
@@ -171,5 +209,6 @@ Add `--no-eval` to skip the evaluator. It uses the same model defaults and envir
 - The server listens on `127.0.0.1` only and rejects cross-origin requests.
 - Uploaded PDFs are sent to Google's Gemini API for processing. Do not upload documents you are not allowed to share
   with that service.
+- Uploaded PDFs are also kept on disk in `app/uploads/` (git-ignored) until you delete the bill.
 - The viewer ships with two sample bills built in; remove or replace them before sharing the project outside your
   organisation.

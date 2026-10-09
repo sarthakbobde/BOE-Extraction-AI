@@ -297,6 +297,7 @@ CREATE TABLE boe_invoice_item (
 -- =====================================================================
 
 -- Lookup of the ~20 duty types printed across Part III sections B / C / C-A
+-- (the viewer / extractor writes the code without punctuation: CVD05 here is 'CVD_05'; GCESS = 'G.CESS'; SPEXD = 'SP EXD' ...)
 CREATE TABLE ref_duty_type (
     duty_type_code   VARCHAR(15) PRIMARY KEY,
     duty_group       VARCHAR(20) NOT NULL
@@ -339,7 +340,7 @@ CREATE TABLE boe_item_duty (
     notification_sno     VARCHAR(15),   -- Notn SNo.
     rate                 NUMERIC(8,3),
     amount               NUMERIC(16,2),
-    duty_foregone_flag    VARCHAR(5),    -- Duty Fg
+    duty_foregone         NUMERIC(16,2), -- 'Duty Fg' row: an AMOUNT (e.g. 84501.79), not a flag
     UNIQUE (item_id, duty_type_code)
 );
 
