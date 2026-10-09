@@ -68,7 +68,7 @@ def save_doc(doc: dict, pdf: bytes) -> str:
 
 
 EDIT_DENY_TOP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt",
-                 "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema"}
+                 "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema", "rated"}
 KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 

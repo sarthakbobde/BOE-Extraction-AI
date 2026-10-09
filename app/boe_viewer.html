@@ -271,6 +271,7 @@ table.items td.cth{ font-family:var(--mono); color:var(--ink-soft); white-space:
 .cpill.c-low{ background:#FFE9B8; color:#8A5A00; }
 .cpill.c-vlow{ background:#F8D4D4; color:#9B2C2C; }
 .cpill.c-edited{ background:var(--blue-pale); color:var(--blue-deep); }
+.cpill.c-unrated{ background:#F3EEDD; color:#8A7B4A; font-weight:400; }
 .cpill.none{ background:#F0F3F7; color:var(--ink-soft); font-weight:400; }
 .field-row.c-low{ background:#FFF8E6; box-shadow:inset 3px 0 0 #E0A21B; }
 .field-row.c-vlow{ background:#FDEEEE; box-shadow:inset 3px 0 0 var(--danger); }
@@ -717,7 +718,7 @@ function billRowHTML(key){
   return '<div class="bill-row item" onclick="openBill(\''+key+'\')">'
     + '<div><div class="beno">'+d.boe.beNo+'</div><span class="badge">'+(d.boe.copyType||"—")+'</span>'
     + (d.uploaded ? '<span class="badge up">Uploaded</span>' : '')
-    + (lowPaths(d).length ? '<span class="badge low" title="Fields below 80% confidence">'+lowPaths(d).length+' to review</span>' : '')
+    + (lowPaths(d).length ? '<span class="badge low" title="Fields rated Medium or Low">'+lowPaths(d).length+' to review</span>' : '')
     + '<div class="row-actions">' + pdfLinkHTML(key, d)
     + delControlsHTML(key) + '</div>'
     + '</div>'
@@ -827,9 +828,18 @@ const DUTY_COLS = {
   C:  [["spexd","1.SP EXD"],["chcess","2.CHCESS"],["tta","3.TTA"],["cess","4.CESS"],["caidc","5.CAIDC"],["eaidc","6.EAIDC"],["cusedc","7.CUS EDC"],["cushec","8.CUS HEC"],["ncd","9.NCD"],["aggr","10.AGGR"]],
   CA: [["othcus","1.OTHCUS"],["othcvd","2.OTHCVD"],["petrcus","3.PETR CUS"],["infraces","4.INFRA CES"],["cuscvd","5.CUS CVD"]]
 };
+function dutyCols(g, d, ks){                      // Part III B column 2 is printed CVD_05 (2026 form) or ACD (2025 form)
+  const base = DUTY_COLS[g];
+  if(g!=="B") return base;
+  const has = function(code){ return ks.some(function(k){ const x = d[k]||{}; return Object.keys(x).some(function(f){ return f.indexOf(code)===0 && /(NotnNo|NotnSno|Rate|Amount|DutyFg)$/.test(f) && x[f]!=null; }); }); };
+  const acd = ["acd","2.ACD"];
+  if(has("acd") && !has("cvd05")) return base.map(function(c){ return c[0]==="cvd05" ? acd : c; });
+  if(has("acd")) return base.slice(0,1).concat([acd], base.slice(1));
+  return base;
+}
 function dutySection(field){                       // which Part III section a duty field (bcdRate, caidcNotnNo, upi ...) belongs to
   const m = /^([a-z0-9]+?)(NotnNo|NotnSno|Rate|Amount|DutyFg)$/.exec(field||"");
-  if(m){ for(const g of ["B","C","CA"]){ if(DUTY_COLS[g].some(function(c){ return c[0]===m[1]; })) return g; } }
+  if(m){ for(const g of ["B","C","CA"]){ if(DUTY_COLS[g].some(function(c){ return c[0]===m[1]; }) || (g==="B" && m[1]==="acd")) return g; } }
   return "A";
 }
 const PART4_TITLES = { svb:"SVB details", previous_be:"Previous BEs", reimport:"Re-import after export", manufacturer:"Manufacturer / producer / grower",
@@ -1152,18 +1162,23 @@ function confClass(c){
   if(c.b==="edited") return "c-edited";
   return c.s < VLOW_BELOW ? "c-vlow" : (c.s < LOW_BELOW ? "c-low" : "c-ok");
 }
+function confLevel(s){ return s < VLOW_BELOW ? "Low" : (s < LOW_BELOW ? "Medium" : "High"); }
+function isRated(){ const d = curDoc(); return !!(d && d.rated); }       // bills read since ratings were added carry one for every value
 function confTip(c){
-  if(!c) return "Not scored: blank value, a one-letter flag, or nothing to match against";
+  if(!c) return isRated() ? "" : "Not rated when this bill was read. Upload it again to get an AI confidence rating.";
   if(c.b==="edited") return "Edited by you";
   const q = curDoc().quality;
   const base = c.b==="checked"
     ? "Found on the page and passed the cross-checks"+((q&&q.evaluator)?", audited by a second model":"")
-    : "Matched against the PDF text";
-  return base+": "+Math.round(c.s*100)+"%"+((c.r&&c.r.length) ? "\n"+c.r.join("\n") : "");
+    : (c.b==="model" ? "Rated by the AI (too generic to confirm against the PDF text)" : "Matched against the PDF text");
+  return base+": "+confLevel(c.s)+((c.r&&c.r.length) ? "\n"+c.r.join("\n") : "");
 }
-function confPill(c){
-  if(!c) return '<span class="cpill none" title="'+confTip(c)+'">&ndash;</span>';
-  const label = c.b==="edited" ? "edited" : Math.round(c.s*100)+"%";
+function confPill(c, empty){
+  if(!c){
+    if(empty || isRated()) return "";                       // nothing was extracted (or it is a structural label): nothing to rate
+    return '<span class="cpill c-unrated" title="'+confTip(c)+'">Medium</span>';
+  }
+  const label = c.b==="edited" ? "edited" : confLevel(c.s);
   return '<span class="cpill '+confClass(c)+'" title="'+confTip(c)+'">'+label+'</span>';
 }
 
@@ -1178,7 +1193,7 @@ function row(no,label,value,path,opts){
   const c = confOf(path);
   return '<div class="field-row editable '+confClass(c)+'" data-path="'+path+'"'+(opts.multi?' data-multi="1"':'')+' onclick="rowClick(event,this)">'
     + '<div class="fno">'+(no||"")+'</div><div class="flabel">'+label+'</div><div class="fvalue">'+v+'</div>'
-    + '<div class="fmeta">'+confPill(c)+'<button class="fedit" title="Edit this field" onclick="editField(this)">'+ICON_EDIT+'</button></div></div>';
+    + '<div class="fmeta">'+confPill(c, empty)+'<button class="fedit" title="Edit this field" onclick="editField(this)">'+ICON_EDIT+'</button></div></div>';
 }
 /* Fld reads the value itself: opts.fmt custom formatter, opts.raw plain number, opts.multi long text */
 function Fld(no,label,path,opts){
@@ -1195,7 +1210,7 @@ function sheetRows(list){ return list.map(function(r){ return Fld(r[0], r[1], r[
 function cellHTML(path, shown, cls, editable){
   const c = confOf(path);
   const empty = (shown===null||shown===undefined||shown==="");
-  return '<td class="'+(editable?'ecell ':'rcell ')+(cls||"")+' '+confClass(c)+'" data-path="'+path+'" title="'+confTip(c)+(editable?'\nClick to edit':'')+'"'
+  return '<td class="'+(editable?'ecell ':'rcell ')+(cls||"")+' '+confClass(c)+'" data-path="'+path+'" title="'+(empty?"":confTip(c))+(editable?'\nClick to edit':'')+'"'
     + (editable ? ' onclick="editCell(this)"' : '') + '>' + (empty ? '<span class="empty">&mdash;</span>' : shown) + '</td>';
 }
 function ecell(path, shown, cls){ return cellHTML(path, shown, cls, true); }
@@ -1348,7 +1363,7 @@ function lowPaths(doc){
 function locate(path, doc){
   const t = path.split("."), h = t[0];
   const top = { boe:["I","HDR"], status:["I","A"], declarant:["I","B"], dutySummary:["I","C"], manifest:["I","D"], payments:["I","F"],
-    events:["I","H"], containers:["I","J"], supportingDocs:["IV","M"], declarations:["VI","A"], signatory:["VI","B"] };
+    events:["I","H"], processing:["I","H"], containers:["I","J"], supportingDocs:["IV","M"], declarations:["VI","A"], signatory:["VI","B"] };
   if(top[h]) return top[h];
   if(h==="invoices"){
     const i = +t[1], k = t[2];
@@ -1395,9 +1410,9 @@ function reviewNext(){
 }
 function reviewBarHTML(doc){
   const low = lowPaths(doc).length, ed = Object.keys(doc.edits||{}).length, scored = Object.keys(doc.conf||{}).length;
-  const legend = '<span class="lg"><i class="sw c-low"></i>below 80%</span><span class="lg"><i class="sw c-vlow"></i>below 50%</span><span class="lg"><i class="sw c-edited"></i>edited</span>';
+  const legend = '<span class="lg"><i class="sw c-low"></i>Medium</span><span class="lg"><i class="sw c-vlow"></i>Low</span><span class="lg"><i class="sw c-edited"></i>edited</span>';
   return '<div class="rbar '+(low?'warn':'ok')+'"><div class="rtxt">'
-    + (low ? '<b>'+low+' field'+(low===1?'':'s')+' below 80% confidence</b>' : '<b>No low-confidence fields</b>')
+    + (low ? '<b>'+low+' field'+(low===1?'':'s')+' rated Medium or Low</b>' : '<b>No Medium or Low fields</b>')
     + ' &middot; '+scored+' scored'+(ed ? ' &middot; '+ed+' edited' : '')
     + '</div><div class="rbtns">'+(low ? '<button class="btn" onclick="reviewNext()">Review next &rsaquo;</button>' : '')+legend+'</div></div>';
 }
@@ -1490,6 +1505,7 @@ function renderMain(){
           const b = "events."+i;
           return '<tr>'+ecell(b+".event",e.event)+ecell(b+".date",e.date)+ecell(b+".time",e.time)+ecell(b+".rate",e.rate)+'</tr>';
         }).join("")) : none("No processing events declared.");
+      if(doc.processing) body += sheet(sheetRows([["","OOC no.","processing.oocNo"],["","OOC date","processing.oocDate"]]));
     } else if(S==="E"){ label = "Bond details";
       body = !Array.isArray(doc.bonds) ? "" : (doc.bonds.length ? tbl(["Bond no.","Port","Bond cd","Debt amt","BG amt"], doc.bonds.map(function(x,i){
           const b = "bonds."+i;
@@ -1595,7 +1611,7 @@ function renderMain(){
       main.innerHTML = h + '<div class="note" style="margin:6px 0 12px">Printed fields 1&ndash;30 of each item (1.INVSNO is the invoice shown above). Click a cell to edit it.</div>'
         + tbl(["2.ITEMSN"].concat(cols.map(function(c){ return c[1]; })), rows, foot);
     } else {
-      const grp = DUTY_COLS[S];
+      const grp = dutyCols(S, d, ks);
       const rowsDef = [["NotnNo","Notn No."],["NotnSno","Notn SNo."],["Rate","Rate"],["Amount","Amount"],["DutyFg","Duty Fg"]];
       const tot = {};
       ks.forEach(function(k){ grp.forEach(function(c){ const v = d[k][c[0]+"Amount"]; if(typeof v==="number") tot[c[0]] = (tot[c[0]]||0) + v; }); });

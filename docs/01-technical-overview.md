@@ -64,7 +64,7 @@ model for loading the data later; nothing writes to it yet.
 | `files2/schemas.py` | Extraction schemas for Parts I–III (the evidence-checked core) |
 | `files2/pipeline.py` | Prompts, agents, evidence gate, optional evaluator, field scoring (also a CLI) |
 | `files2/checks.py` | Deterministic cross-checks |
-| `files2/test_checks.py` | 19 tests for schemas and checks |
+| `files2/test_checks.py` | 20 tests for schemas, checks and score caps (+ `app/test_ratings.py`, 4 tests of the High/Medium/Low logic) |
 | `files1/boe_schema.sql` | PostgreSQL schema (36 tables) + `migration_001/002` |
 
 ---
@@ -107,7 +107,7 @@ status         Part I A (flags, countries, ports)                 signatory     
 declarant      Part I B                                           compliance     Part V (or null)
 dutySummary    Part I C — all 19 cells                            additional     Part IV A–L sections (tables)
 manifest       Part I D                                           supportingDocs Part IV supporting documents
-bonds[] warehouse[] payments[] events[] containers[]              conf           {path: {s, b, r}}   (scores)
+bonds[] warehouse[] payments[] events[] containers[]              conf           {path: {s, b, r}}   (scores; shown as High/Medium/Low)
 invoices[]     { sno,no,date,po/lc/contract,adCode,amount,        edits          {path: {orig, origConf, at}}
                  parties{}, valuation{}, cost{}, items[[…]],      pageMap        which PDF page each section/row is on
                  duties{ itemsn: {A fields…, bcdRate, igstNotnNo,…} } }
@@ -239,7 +239,7 @@ browser as an event. Real numbers so far: roughly **$0.016–0.02 per call**; a 
 
 ## 11. Testing
 
-- `cd files2 && python -m pytest -q` → **19 tests** on the schemas and cross-checks (golden data from a real bill,
+- `cd files2 && python -m pytest -q` → **20 tests** on the schemas and cross-checks (golden data from a real bill,
   injected mistakes such as a digit swap, wrong column, dropped item; legacy-format loading; new duty rules).
 - UI and mapping were verified with offline scripts (synthetic full-schema bill, sweeps over every section page) and
   with three real extractions compared with the PDF page images.

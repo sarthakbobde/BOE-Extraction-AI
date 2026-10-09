@@ -161,7 +161,10 @@ Computed in `files2/pipeline.py → score_fields`. Every field starts at **1.0**
 | Second model says "not supported" (if on) | −0.4 | once |
 | Second model gave no answer (if on) | −0.2 | once |
 
-Floor 0. **Below 0.8 = "needs review".**
+| The model itself marked the value `medium` / `low` confidence | cap at 0.7 / 0.4 | once (the score can only go down) |
+
+Floor 0. **Below 0.8 = "needs review".** The viewer shows the score as a word, not a percentage:
+**High** (0.8 and above), **Medium** (0.5 to under 0.8), **Low** (under 0.5).
 
 Every value this formula can produce:
 
@@ -187,7 +190,7 @@ look from a human.
 
 ---
 
-## 8. The score for everything else (text match)
+## 8. The score for everything else (text match and the model's own rating)
 
 Status, parties, declarant extras, Part IV, V and VI are read by the model but have no arithmetic to check. They get a
 simpler, weaker test: **does the value appear in the PDF's text?** (whole-document search).
@@ -200,9 +203,19 @@ simpler, weaker test: **does the value appear in the PDF's text?** (whole-docume
 | Text, word by word | 90 % if every word is present | `40 % + 50 % × share of words found` |
 
 - **Capped at 90 %** on purpose: a text match is weaker than a checked field, and should look weaker.
-- **Not scored ("–")**: blank values, zeros, whole numbers under 10, one-letter flags (`N`, `Y`), serial numbers, and
-  structural labels (table column headings).
+- **Too generic to text-match** — zeros, whole numbers under 10, one-letter flags (`N`, `Y`), and similar. These are
+  searched for nowhere, because they appear all over the PDF. Instead they take **the model's own rating**: **High** (0.9)
+  unless the model listed the value in its `doubts` (see below).
+- **No rating at all**: blank values (nothing was extracted) and structural labels / serial keys (table column
+  headings, `sno`).
 - It checks existence *somewhere in the document*, not the right cell — so it is deliberately lenient.
+
+**The model's own confidence.** Every core value (`Val`/`Ev`) carries `conf: high | medium | low` (default `high`).
+For the other sections the model returns a `doubts` list naming only the values it is not sure about (Part I, the
+invoice details and Part IV cells). A doubt never raises a score: it caps it at Medium (0.7) or Low (0.4), whichever
+signal is lower wins. Self-reported confidence is optimistic, so it can lift a generic value to High but can never
+override a failed check or a missing value. Part V/VI text and Part IV supporting documents / containers have no
+doubts list yet; they are rated by text match only.
 
 ---
 
@@ -213,12 +226,14 @@ simpler, weaker test: **does the value appear in the PDF's text?** (whole-docume
   (`invoices.0.duties.4.igstAmount`) in `to_viewer.map_pipeline_rows`.
 - If one viewer field has several pipeline sources, the **worst** score is kept. Pipeline scores **override** text-match
   scores for the same field.
-- **Colours:** green ≥ 80 %, amber < 80 %, red < 50 %, blue = edited, "–" = not scored.
+- **Labels and colours:** **High** (green, ≥ 80 %), **Medium** (amber, 50–80 %), **Low** (red, < 50 %), blue = edited.
+  Blank values show no label. Bills read before ratings existed lack `doc.rated`; their unrated values show a muted
+  "Medium" until the bill is uploaded again.
 - **Edited** = 100 % "edited" (a human verified it). *Revert* restores the stored original value and its original score;
   editing a value back to the original is treated as a revert.
 - **Counters:**
   - The *green* "Extracted from…" banner is the pipeline's own tally (Parts I–III only, from the last run).
-  - The *amber* review bar counts every scored field below 80 % from both sources (live — it drops as you edit).
+  - The *amber* review bar counts every field rated Medium or Low (below 80 %) from all sources (live — it drops as you edit).
   - Left-menu badges and the list's "N to review" use the same live count. **Review next** walks the low fields.
 
 ---
@@ -248,6 +263,7 @@ It is **not**:
 - precise about *which* field is wrong: a failed check lowers every field it names, including correct ones.
 - able to see **omissions**: a blank is "not scored", so a value the model missed entirely is invisible to the score.
 - strict for non-core sections: the text match is existence-only and tops out at 90 %.
+- proof for generic values: a flag or zero rated High means the *AI* was confident, not that anything verified it.
 
 Lessons from real runs (all fixed, and a good guide to the failure modes):
 - A label we added (a *table column heading*) was being scored and flagged — headings are now ignored.
@@ -289,8 +305,9 @@ on the amber/red fields.
 | Schemas (what is asked) | `files2/schemas.py`, `app/viewer_schemas.py` |
 | Check rules and tolerances | `files2/checks.py` |
 | Penalties and the 0.8 review threshold | `files2/pipeline.py → score_fields`, `REVIEW_THRESHOLD` |
-| Text-match scores and skip rules | `app/confidence.py` |
-| Amber / red thresholds in the UI | `LOW_BELOW`, `VLOW_BELOW` in `app/boe_viewer.html` |
+| Text-match scores, the model rating (`MODEL_HIGH`, `MODEL_CAP`) and skip rules | `app/confidence.py`, `files2/pipeline.py → MODEL_CAP` |
+| Doubt-to-viewer-path mapping | `app/to_viewer.py → part1_doubt_path`, `INV_DOUBT`, `build_doc` |
+| Medium / Low thresholds in the UI | `LOW_BELOW`, `VLOW_BELOW`, `confLevel()` in `app/boe_viewer.html` |
 | Pipeline-path → viewer-path mapping | `app/to_viewer.py → map_pipeline_rows` (+ the `*_MAP` tables) |
 | Page classification | `app/extract_service.py → classify_all` |
 
@@ -303,7 +320,9 @@ on the amber/red fields.
 - **Evaluator / second-model audit** — an independent model's per-field "supported?" verdict (optional).
 - **Pipeline score** — the 0–100 % score for Part I–III fields built from the three signals above.
 - **Text match** — the weaker existence-only score for the other sections (max 90 %).
-- **Needs review** — a score below 80 %.
+- **High / Medium / Low** — how the score is shown: 80 %+, 50–80 %, under 50 %.
+- **Doubts** — values the model itself listed as not fully sure about; they lower the rating.
+- **Needs review** — a score below 80 % (Medium or Low).
 - **Edited** — a human-verified value (100 %).
 - **Path** — the dotted address of a value in the bill document, e.g. `invoices.0.valuation.freight`.
 - **Page map** — which PDF page each section / item / duty row came from; powers the jump-and-highlight.

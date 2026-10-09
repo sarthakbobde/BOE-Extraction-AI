@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from confidence import resolves, score_doc
+from confidence import apply_doubts, resolves, score_doc
 
 DATE_FORMATS = ("%d/%m/%Y", "%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y", "%d/%m/%y")
 
@@ -73,7 +73,7 @@ SUMMARY_MAP = {"port_code": "boe.portCode", "be_no": "boe.beNo", "be_date": "boe
                "total_amount": "dutySummary.totalAmount", "challan_amount": "payments.0.amount"}
 SUMMARY_INV_MAP = {"invoice_no": "no", "amount": "amount", "currency": "currency"}
 HEADER_MAP = {"inv_value": "valuation.invoiceValue", "freight": "valuation.freight", "insurance": "valuation.insurance",
-              "invoice_currency": "valuation.currency", "incoterm": "valuation.incoterm", "misc_charge": "cost.miscCharge",
+              "invoice_currency": "valuation.currency", "freight_currency": "valuation.freightCurrency", "incoterm": "valuation.incoterm", "misc_charge": "cost.miscCharge",
               "assessable_value": "cost.assessValue", "c_and_b": "cost.cb", "coc": "cost.coc", "cop": "cost.cop",
               "hnd_chg": "cost.hndChg", "g_and_s": "cost.gs", "doc_ch": "cost.docCh", "coo": "cost.coo", "r_and_lf": "cost.rlf",
               "oth_cost": "cost.othCost", "ld_uld": "cost.ldUld", "ws": "cost.ws", "otc": "cost.otc"}
@@ -138,6 +138,40 @@ def map_pipeline_rows(rows, ex, inv_idx, item_idx) -> dict:
         except (IndexError, KeyError, ValueError):
             continue
     return out
+
+
+_CAMEL = re.compile(r"_([a-z0-9])")
+P1_ROOT = {"header": "boe", "status": "status", "declarant": "declarant", "manifest": "manifest"}
+P1_ALIAS = {("header", "gross_weight"): "grossWeightKg", ("header", "gstin_type"): "gstin", ("header", "port_name"): "port",
+            ("header", "barcode_ref"): "barcode", ("manifest", "gross_weight"): "grossWeightKg",
+            ("events", "exchange_rate"): "rate"}
+INV_DOUBT = {"invoice_date": "date", "purchase_order_no": "poNo", "purchase_order_date": "poDate", "lc_no": "lcNo",
+             "lc_date": "lcDate", "contract_no": "contractNo", "contract_date": "contractDate", "ad_code": "adCode",
+             "aeo": "parties.aeo", "buyer": "parties.buyer", "seller": "parties.seller", "supplier": "parties.supplier",
+             "third_party": "parties.thirdParty", "hss": "valuation.hss", "loading": "valuation.loading",
+             "commission": "valuation.commission", "pay_terms": "valuation.payTerms",
+             "valuation_method": "valuation.valuationMethod", "related_party": "valuation.relatedParty",
+             "svb_ch": "valuation.svbCh", "svb_no": "valuation.svbNo", "svb_date": "valuation.svbDate", "loa": "valuation.loa"}
+_P1_FIELD = re.compile(r"^([a-z_0-9]+)(?:\[(\d+)\])?(?:\.([a-z_0-9]+))?$")
+
+
+def _camel(s: str) -> str:
+    return _CAMEL.sub(lambda m: m.group(1).upper(), s)
+
+
+def part1_doubt_path(field: str) -> str | None:
+    """'status.kaccha' / 'payments[0].amount' / 'ooc_no' (the model's words) -> viewer data path."""
+    m = _P1_FIELD.match((field or "").strip().lower())
+    if not m:
+        return None
+    root, idx, leaf = m.groups()
+    if root in P1_ROOT and leaf and idx is None:
+        return f"{P1_ROOT[root]}.{P1_ALIAS.get((root, leaf)) or _camel(leaf)}"
+    if root in ("payments", "events") and idx is not None and leaf:
+        return f"{root}.{idx}.{P1_ALIAS.get((root, leaf)) or _camel(leaf)}"
+    if root in ("ooc_no", "ooc_date") and idx is None and leaf is None:
+        return "processing." + _camel(root)
+    return None
 
 
 def first(items):
@@ -255,20 +289,43 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
 
     from viewer_schemas import PART4_SECTIONS  # sections A-L, merged across pages, only those with data
     merged: dict[str, list] = {}
+    row_at: dict[tuple, int] = {}                   # (page output, section, row on that page) -> row in the merged table
     for _, p4 in extras.get("part4", []):
         for sec in p4.sections:
             code = (sec.code or "").strip().lower()
             if code not in PART4_SECTIONS:
                 continue
             width = len(PART4_SECTIONS[code][1])
-            for r in sec.rows:
+            for ri, r in enumerate(sec.rows):
                 cells = [v(c) for c in r.cells][:width]
                 cells += [None] * (width - len(cells))
                 if any(cells):
                     merged.setdefault(code, []).append(cells)
+                    row_at[(id(p4), code, ri)] = len(merged[code]) - 1
     order = list(PART4_SECTIONS)                    # dict order = the order the sections are printed in the PDF
     additional = [{"code": c, "title": PART4_SECTIONS[c][0], "columns": PART4_SECTIONS[c][1], "rows": merged[c]}
                   for c in sorted(merged, key=order.index)]
+
+    # ---- values the model said it was not fully sure about -> viewer paths
+    doubts: list[tuple[str, str]] = []
+    if p1:
+        doubts += [(part1_doubt_path(d.field), d.level) for d in p1.doubts]
+    for sno, d in inv_details.items():
+        j = inv_idx.get(sno)
+        for dbt in d.doubts:
+            sub_path = INV_DOUBT.get((dbt.field or "").strip().lower())
+            if j is not None and sub_path:
+                doubts.append((f"invoices.{j}.{sub_path}", dbt.level))
+    sec_pos = {a["code"]: k for k, a in enumerate(additional)}
+    for _, p4 in extras.get("part4", []):
+        for dbt in p4.doubts:
+            m = re.match(r"^([a-z_0-9]+)\[(\d+)\]\.(\d+)$", (dbt.field or "").strip().lower())
+            if not m:
+                continue
+            code, ri, col = m.group(1), int(m.group(2)), int(m.group(3)) - 1
+            mi = row_at.get((id(p4), code, ri))
+            if mi is not None and code in sec_pos and col >= 0:
+                doubts.append((f"additional.{sec_pos[code]}.rows.{mi}.{col}", dbt.level))
 
     def lines(xs):
         return [t for t in (re.sub(r"\s+", " ", x).strip() for x in xs) if t]
@@ -357,6 +414,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
                       "amount": num(p.amount)} for i, p in enumerate(p1.payments)] if p1 else [],
         "events": [{"event": v(e.event), "date": date(e.date), "time": v(e.time), "rate": rate_text(e.exchange_rate)}
                    for e in p1.events] if p1 else [],
+        "processing": {"oocNo": v(p1.ooc_no) if p1 else None, "oocDate": date(p1.ooc_date) if p1 else None},
         "containers": containers,
         "invoices": invoices,
         "supportingDocs": supporting,
@@ -367,6 +425,8 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
     }
     conf = score_doc(doc, full_text) if full_text else {}
     conf.update(map_pipeline_rows(field_rows or [], ex, inv_idx, item_idx))
+    apply_doubts(conf, [(p, lv) for p, lv in doubts if p and resolves(doc, p)])
+    doc["rated"] = True                    # every extracted value carries a High / Medium / Low rating (older bills lack this)
     doc["conf"] = {k: c for k, c in conf.items() if resolves(doc, k)}
     doc["edits"] = {}
     doc["pageMap"] = page_map

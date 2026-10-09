@@ -9,6 +9,7 @@ Design rules
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -17,6 +18,10 @@ class Val(BaseModel):
     """Lean evidence value (no quote) for the many additional fields: same checks and scoring as `Ev`, fewer tokens."""
     value: str = Field(description="Value exactly as printed on the page. No reformatting, "
                                    "no added thousands separators, no unit conversion.")
+    conf: Literal["high", "medium", "low"] = Field(
+        "high", description="Your own confidence that `value` is exactly what is printed, in the correct cell and "
+                            "under the correct heading. 'high' = read it clearly; 'medium' = some doubt (small or "
+                            "blurry print, ambiguous row/column); 'low' = a guess.")
 
 
 class Ev(Val):

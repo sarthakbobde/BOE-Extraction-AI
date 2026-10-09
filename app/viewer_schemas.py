@@ -5,9 +5,17 @@ viewer labels them as extracted-but-not-cross-checked.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 S = str | None
+
+
+class Doubt(BaseModel):
+    """A value the model is NOT fully sure about. Values that are not listed are treated as read with high confidence."""
+    field: str = Field(description="Which value, written as the instructions say")
+    level: Literal["medium", "low"] = Field(description="'medium' = some doubt, 'low' = a guess")
 
 
 class Part1Header(BaseModel):
@@ -115,6 +123,9 @@ class Part1Details(BaseModel):
     warehouse: list[Warehouse] = Field(default_factory=list, description="G. WH rows (empty when the section is blank)")
     events: list[ProcessingEvent] = Field(default_factory=list, description="H. PROCESSING DETAILS rows with a date/time filled in")
     containers: list[Container] = Field(default_factory=list, description="J. CONTAINER DETAILS rows on this page")
+    ooc_no: S = Field(None, description="H. PROCESSING DETAILS 'OOC NO.', null if blank")
+    ooc_date: S = Field(None, description="H. PROCESSING DETAILS 'OOC DATE', null if blank")
+    doubts: list[Doubt] = Field(default_factory=list, description="Only values you are not fully sure about")
 
 
 class InvoiceDetails(BaseModel):
@@ -144,6 +155,7 @@ class InvoiceDetails(BaseModel):
     svb_no: S = Field(None, description="C. 11.SVB NO")
     svb_date: S = Field(None, description="C. 12.DATE")
     loa: S = Field(None, description="C. 13 LOA")
+    doubts: list[Doubt] = Field(default_factory=list, description="Only values you are not fully sure about")
 
 
 class SupportingDoc(BaseModel):
@@ -202,6 +214,7 @@ class Part4Page(BaseModel):
     containers: list[Container] = Field(default_factory=list)
     sections: list[Part4Section] = Field(default_factory=list, description="Only sections that have at least one "
                                                                          "printed data row on this page")
+    doubts: list[Doubt] = Field(default_factory=list, description="Only cells in `sections` you are not fully sure about")
 
 
 class Declaration(BaseModel):

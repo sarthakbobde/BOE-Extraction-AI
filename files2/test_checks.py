@@ -193,3 +193,16 @@ def test_new_item_fields_are_evidence_checked():
     ex.duty_items[0].item_duty.append(DutyCell(code="IGST", notn_no=Val(value="009/2025")))
     paths = {i.paths[0] for i in evidence_issues(ex.duty_items[0], "assess 563345.29 14482.49 total", "duty_items[0]")}
     assert any(p.endswith("notn_no") for p in paths) and not any(p.endswith(".upi") for p in paths)
+
+
+def test_model_doubt_caps_the_field_score():
+    import pipeline
+    ex = golden()
+    ex.summary.bcd.conf = "medium"
+    ex.summary.igst.conf = "low"
+    pages = {1: pipeline.Page(1, "", b"")}
+    rows = {r["path"]: r for r in pipeline.score_fields(ex, pages, [], None)}
+    assert rows["summary.bcd"]["score"] <= 0.7 and rows["summary.bcd"]["status"] == "needs_review"
+    assert rows["summary.igst"]["score"] <= 0.4
+    assert any("not fully sure" in x for x in rows["summary.bcd"]["reasons"])
+    assert rows["summary.sws"]["score"] <= 1.0 and not any("not fully sure" in x for x in rows["summary.sws"]["reasons"])

@@ -174,6 +174,9 @@ def build_report(doc: dict) -> bytes:
         S.append(grid(["Event", "Date", "Time", "Exchange rate"],
                       [[t(x.get("event")), t(x.get("date")), t(x.get("time")), t(x.get("rate"))] for x in doc["events"]],
                       [W * .25, W * .25, W * .15, W * .35]))
+    pr = doc.get("processing") or {}
+    if pr.get("oocNo") or pr.get("oocDate"):
+        S.append(sheet([("OOC no.", t(pr.get("oocNo"))), ("OOC date", t(pr.get("oocDate")))], W))
     S.append(p("J. Containers", "h2"))
     if doc.get("containers"):
         S.append(grid(["Sno", "LCL/FCL", "Truck", "Seal", "Container no."],
@@ -222,7 +225,7 @@ def build_report(doc: dict) -> bytes:
     if have_duties:
         S.append(PageBreak())
         S.append(p("Part III — Duties", "h1"))
-        GROUPS = [("B. Item duty", [("bcd", "BCD"), ("cvd05", "CVD_05"), ("sws", "SWS"), ("sad", "SAD"), ("igst", "IGST"), ("gcess", "G.CESS"),
+        GROUPS = [("B. Item duty", [("bcd", "BCD"), ("cvd05", "CVD_05"), ("acd", "ACD"), ("sws", "SWS"), ("sad", "SAD"), ("igst", "IGST"), ("gcess", "G.CESS"),
                                     ("add", "ADD"), ("cvd", "CVD"), ("sg", "SG"), ("tvalue", "T.VALUE")]),
                   ("C. Other duties", [("spexd", "SP EXD"), ("chcess", "CHCESS"), ("tta", "TTA"), ("cess", "CESS"), ("caidc", "CAIDC"),
                                        ("eaidc", "EAIDC"), ("cusedc", "CUS EDC"), ("cushec", "CUS HEC"), ("ncd", "NCD"), ("aggr", "AGGR")]),

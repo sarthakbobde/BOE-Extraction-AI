@@ -1,11 +1,13 @@
 """Per-field confidence for the viewer.
 
-Two sources, both keyed by the viewer's dotted data path (e.g. "invoices.0.valuation.freight"):
-  * pipeline scores (Parts I-III): evidence gate + cross-checks + optional evaluator, mapped by to_viewer.py
+Three sources, all keyed by the viewer's dotted data path (e.g. "invoices.0.valuation.freight"):
+  * pipeline scores (Parts I-III): evidence gate + cross-checks + optional evaluator + the model's own doubt
   * text match (everything else): does the value literally appear in the PDF text layer?
+  * the model's own rating ("model"): values too generic to find in the PDF text (flags, zeros, small numbers)
+    get High unless the model listed them as doubts; any doubt (medium/low) also caps the scores above.
 
-A score is {"s": 0..1, "b": "checked" | "text" | "edited", "r": [reasons]}. Fields with no score
-(blank values, single-letter flags, bare counters) are left out so the UI shows "not scored".
+A score is {"s": 0..1, "b": "checked" | "text" | "model" | "edited", "r": [reasons]}. The UI shows High (>= 0.8),
+Medium (>= 0.5) or Low. Blank values and structural labels carry no score and no rating.
 """
 from __future__ import annotations
 
@@ -19,8 +21,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "files2"))
 from checks import numbers_on_page  # noqa: E402
 
 REVIEW_BELOW = 0.8
+MODEL_HIGH = 0.9                                 # a generic value the model read with confidence
+MODEL_CAP = {"medium": 0.7, "low": 0.4}          # the model's own doubt: Medium / Low
 TOP_SKIP = {"id", "label", "short", "sourceFile", "uploaded", "quality", "conf", "edits", "uploadedAt",
-            "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema"}
+            "hasPdf", "pageCount", "pageMap", "sectionLetters", "schema", "rated"}
 LEAF_SKIP = {"sno", "srNo", "inv", "item", "for", "columns", "title", "code"}
 TOKEN = re.compile(r"[A-Z0-9]+")
 DATE_FORMATS = ("%d-%b-%Y",)
@@ -99,6 +103,8 @@ def score_doc(doc: dict, full_text: str) -> dict[str, dict]:
             continue
         if path.startswith("invoices.") and re.search(r"\.items\.\d+\.0$", path):
             continue                                       # item serial number
+        if isinstance(v, str) and not v.strip():
+            continue                                       # blank: nothing was extracted, so nothing to rate
         if isinstance(v, (int, float)):
             r = sc.number(v)
         elif isinstance(v, str):
@@ -107,7 +113,23 @@ def score_doc(doc: dict, full_text: str) -> dict[str, dict]:
             r = None
         if r:
             out[path] = {"s": r[0], "b": "text", "r": r[1]}
+        else:                                              # too generic to find in the PDF text: the model's own word
+            out[path] = {"s": MODEL_HIGH, "b": "model", "r": []}
     return out
+
+
+def apply_doubts(conf: dict[str, dict], doubts: list[tuple[str, str]]) -> None:
+    """Lower a field's score to Medium / Low where the model said it was unsure (never raises a score)."""
+    for path, level in doubts:
+        cap = MODEL_CAP.get(level)
+        if cap is None:
+            continue
+        note = f"AI is not fully sure ({level})"
+        cur = conf.get(path)
+        if cur is None:
+            conf[path] = {"s": cap, "b": "model", "r": [note]}
+        elif cur["s"] > cap:
+            conf[path] = {**cur, "s": cap, "r": list(cur["r"]) + [note]}
 
 
 def resolves(doc: dict, path: str) -> bool:
