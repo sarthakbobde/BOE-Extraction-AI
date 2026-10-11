@@ -2,12 +2,10 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "files2"))
 
-from confidence import apply_doubts, score_doc  # noqa: E402
-from schemas import Ev, Val  # noqa: E402
-from to_viewer import part1_doubt_path  # noqa: E402
+from boe.document.confidence import apply_doubts, score_doc  # noqa: E402
+from boe.extraction.schemas import Ev, Val  # noqa: E402
+from boe.document.to_viewer import part1_doubt_path  # noqa: E402
 
 
 def test_generic_values_get_a_model_rating_and_blanks_none():
@@ -39,5 +37,5 @@ def test_part1_doubt_paths():
 
 def test_core_val_default_is_high_and_caps_score():
     assert Val(value="1").conf == "high" and Ev(value="1").conf == "high"
-    import pipeline
+    from boe.extraction import pipeline
     assert pipeline.MODEL_CAP == {"medium": 0.7, "low": 0.4}

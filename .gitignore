@@ -6,12 +6,8 @@ __pycache__/
 *.out
 *.err
 
-# data produced by running the app (extracted bills / pipeline outputs)
-app/uploads/
-files2/*.json
+# data produced or used by running the app: extracted bills, sample PDFs, pipeline outputs, logs
+data/
 
 # unrelated file that came in the zip (css-tree library code)
 files1/error.cjs
-
-# sample bill PDFs (company documents, kept local)
-app/samples/

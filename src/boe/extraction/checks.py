@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from statistics import median
 
-from schemas import BoeExtraction, Ev, flatten
+from boe.extraction.schemas import BoeExtraction, Ev, flatten
 
 ZERO = Decimal(0)
 _NUM = re.compile(r"(?<![\w.])-?(?:\d[\d,]*\.?\d*|\.\d+)")
