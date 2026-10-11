@@ -5,8 +5,8 @@ catches realistic LLM mistakes (digit swap, wrong row, dropped item, wrong colum
 """
 import copy
 
-from checks import evidence_issues, parse_rates, run_all_checks
-from schemas import (BoeExtraction, DutyCell, DutyItem, Ev, InvoiceHeader, InvoicePage,
+from boe.extraction.checks import evidence_issues, parse_rates, run_all_checks
+from boe.extraction.schemas import (BoeExtraction, DutyCell, DutyItem, Ev, InvoiceHeader, InvoicePage,
                      InvoiceRef, ItemLine, SummaryPage, Val)
 
 
@@ -80,7 +80,7 @@ def test_be1_valuation_with_misc_and_freight_in_other_currency():
     h = ex.invoice_pages[0].header
     h.inv_value, h.freight, h.insurance = ev("19694.73"), ev("479.43"), ev(".0708%")
     h.invoice_currency, h.freight_currency, h.misc_charge, h.assessable_value = ev("EUR"), ev("USD"), ev("286.93"), ev("1839381.39")
-    from checks import check_valuation
+    from boe.extraction.checks import check_valuation
     assert check_valuation(ex) == []
 
 
@@ -196,7 +196,7 @@ def test_new_item_fields_are_evidence_checked():
 
 
 def test_model_doubt_caps_the_field_score():
-    import pipeline
+    from boe.extraction import pipeline
     ex = golden()
     ex.summary.bcd.conf = "medium"
     ex.summary.igst.conf = "low"

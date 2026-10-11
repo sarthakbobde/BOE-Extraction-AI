@@ -1,6 +1,6 @@
 """Local server for the BOE viewer: serves the page and runs PDF extraction.
 
-    python server.py [--port 8765]
+    python run.py [--port 8765]        (from the repository root)
 
 The Gemini key comes from the browser (X-Gemini-Key header, kept in the browser's localStorage) or from the
 GEMINI_API_KEY environment variable. It is never written to disk or logged.
@@ -18,13 +18,12 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-import extract_service as svc
-import pdfview
-from sections import part4_letters
-from report import build_report
+from boe.extraction import extract_service as svc
+from boe.web import pdfview
+from boe.extraction.sections import part4_letters
+from boe.document.report import build_report
+from boe.paths import SAMPLES, STATIC, UPLOADS
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-UPLOADS = os.path.join(HERE, "uploads")
 MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "300"))      # largest PDF accepted (default 300 MB)
 MAX_BYTES = MAX_MB * 1024 * 1024
 CHUNK = 1024 * 1024
@@ -40,8 +39,7 @@ def read_body(rfile, length: int) -> bytes:
         buf.extend(chunk)
     return bytes(buf)
 ID_RE = re.compile(r"^[0-9a-f]{12}$")
-SAMPLE_IDS = ("D1", "D2")           # sample bills: PDFs live in app/samples/<id>.pdf (not committed)
-SAMPLES = os.path.join(HERE, "samples")
+SAMPLE_IDS = ("D1", "D2")           # sample bills: PDFs live in data/samples/<id>.pdf (not committed)
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
 
@@ -252,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("/", "/index.html", "/boe_viewer.html"):
-            body = open(os.path.join(HERE, "boe_viewer.html"), "rb").read()
+            body = open(STATIC / "boe_viewer.html", "rb").read()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -359,9 +357,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json({"ok": True})
 
 
-if __name__ == "__main__":
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8765)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     print(f"BOE viewer on http://127.0.0.1:{args.port}  (models: {svc.EXECUTOR_MODEL} / {svc.EVALUATOR_MODEL}; limits: {MAX_MB} MB, {svc.MAX_PAGES} pages)")
     ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+
+
+if __name__ == "__main__":
+    main()

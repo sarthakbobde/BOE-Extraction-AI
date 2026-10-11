@@ -17,8 +17,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "files2"))
-from checks import numbers_on_page  # noqa: E402
+from boe.extraction.checks import numbers_on_page  # noqa: E402
 
 REVIEW_BELOW = 0.8
 MODEL_HIGH = 0.9                                 # a generic value the model read with confidence

@@ -1,6 +1,6 @@
 """Runs the executor/evaluator pipeline on an uploaded PDF and returns a viewer-shaped document.
 
-Reuses ../files2 (pipeline.py, checks.py, schemas.py) for the core extraction and cross-checks, and adds
+Reuses pipeline.py, checks.py and schemas.py (this package) for the core extraction and cross-checks, and adds
 extra agents for the sections the viewer displays (status, declarant, manifest, parties, Part IV/VI ...).
 """
 from __future__ import annotations
@@ -15,26 +15,26 @@ import threading
 from collections import defaultdict
 from typing import Callable
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "files2"))
 
 import pymupdf  # noqa: E402
 from pydantic_ai import Agent, BinaryContent  # noqa: E402
 from pydantic_ai.models.google import GoogleModel  # noqa: E402
 from pydantic_ai.providers.google import GoogleProvider  # noqa: E402
 
-import pipeline as core  # noqa: E402
-from sections import part4_letters  # noqa: E402
-from cost import CostMeter  # noqa: E402
-from checks import run_all_checks  # noqa: E402
-from to_viewer import build_doc  # noqa: E402
-from viewer_schemas import (PART4_SECTIONS, InvoiceDetails, Part1Details, Part4Page, Part5Page,  # noqa: E402
+from boe.extraction import pipeline as core  # noqa: E402
+from boe.paths import CACHE  # noqa: E402
+from boe.extraction.sections import part4_letters  # noqa: E402
+from boe.extraction.cost import CostMeter  # noqa: E402
+from boe.extraction.checks import run_all_checks  # noqa: E402
+from boe.document.to_viewer import build_doc  # noqa: E402
+from boe.extraction.viewer_schemas import (PART4_SECTIONS, InvoiceDetails, Part1Details, Part4Page, Part5Page,  # noqa: E402
                             Part6Page)
 
 EXECUTOR_MODEL = os.getenv("EXECUTOR_MODEL", "gemini-3.8-flash")
 EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gemini-3.1-pro-preview")
 CONCURRENCY = int(os.getenv("EXTRACT_CONCURRENCY", "12"))   # parallel Gemini calls
 RENDER_DPI = int(os.getenv("RENDER_DPI", "150"))             # lower (e.g. 110) = faster, slightly less accurate
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", ".cache")
+CACHE_DIR = str(CACHE)
 ATTEMPTS = int(os.getenv("EXTRACT_ATTEMPTS", "4"))           # tries per page on temporary errors (429/5xx/timeouts)
 MAX_PAGES = int(os.getenv("MAX_PAGES", "600"))      # largest page count accepted
 

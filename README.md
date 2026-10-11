@@ -14,12 +14,35 @@ Reads Indian Customs **Bill of Entry (BOE)** PDFs with AI, checks the extracted 
 
 ```
 boe/
-├── app/       local server + web page (server.py, boe_viewer.html, report.py, cost.py ...)
-├── files2/    extraction pipeline (pipeline.py, schemas.py, checks.py), tests, requirements.txt
-└── files1/    database schema (boe_schema.sql) and the original static viewer
+├── run.py                  start the viewer:  python run.py
+├── requirements.txt        Python dependencies
+├── pytest.ini              test settings (tests run from the repository root)
+├── src/boe/                the application (a Python package)
+│   ├── extraction/         reading a PDF with the AI and checking it
+│   │   ├── pipeline.py       prompts, agents, evidence gate, evaluator, field scoring (also a CLI)
+│   │   ├── schemas.py        schemas for Parts I-III (the evidence-checked core)
+│   │   ├── viewer_schemas.py schemas for the other sections (status, parties, Part IV/V/VI ...)
+│   │   ├── checks.py         deterministic cross-checks
+│   │   ├── extract_service.py  orchestrator: classify pages, call agents, check, score, build the document
+│   │   ├── sections.py       printed Part IV section letters
+│   │   └── cost.py           live Gemini cost meter
+│   ├── document/           turning the extraction into what the viewer shows
+│   │   ├── to_viewer.py      extraction -> viewer document; confidence mapping
+│   │   ├── confidence.py     text-match and model ratings
+│   │   └── report.py         extracted-data PDF report
+│   ├── web/                the local server and the page
+│   │   ├── server.py         HTTP server and API routes
+│   │   ├── pdfview.py        PDF page rendering and text search
+│   │   └── static/boe_viewer.html   the whole front end
+│   └── paths.py            where data lives on disk
+├── tests/                  test_checks.py, test_ratings.py (no AI calls)
+├── database/               schema.sql (PostgreSQL) and migrations/
+├── docs/                   technical overview, how the AI decides, running the viewer
+├── legacy/                 the original static viewer prototype
+└── data/                   git-ignored: uploads/ (stored bills), samples/ (D1.pdf, D2.pdf), logs/
 ```
 
-Keep `app/` and `files2/` side by side: the app imports the pipeline from `files2/`.
+Set `BOE_DATA_DIR` to keep the data folder somewhere else.
 
 ## Requirements
 
@@ -33,7 +56,7 @@ Keep `app/` and `files2/` side by side: the app imports the pipeline from `files
 ### Windows (PowerShell)
 
 ```powershell
-cd boe\files2
+cd boe
 python -m venv .venv
 .\.venv\Scripts\pip install -r requirements.txt
 ```
@@ -41,7 +64,7 @@ python -m venv .venv
 ### macOS / Linux
 
 ```bash
-cd boe/files2
+cd boe
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements.txt
 ```
@@ -53,15 +76,15 @@ Do not copy a `.venv` folder from another machine; create it fresh as above.
 ### Windows
 
 ```powershell
-cd boe\app
-..\files2\.venv\Scripts\python server.py
+cd boe
+.\.venv\Scripts\python run.py
 ```
 
 ### macOS / Linux
 
 ```bash
-cd boe/app
-../files2/.venv/bin/python server.py
+cd boe
+./.venv/bin/python run.py
 ```
 
 Then open **http://127.0.0.1:8765**. Use `--port 9000` to change the port. Keep the terminal open: it prints the Gemini
@@ -83,10 +106,10 @@ Large PDFs: only pages that contain BOE content are rendered and sent to Gemini,
 time and server memory (roughly the PDF size plus a few MB per extracted page). Raise the limits with `MAX_UPLOAD_MB` /
 `MAX_PAGES` before starting the server; cost scales with the number of BOE pages, not the file size.
 
-Resume: every finished page is saved under `app/uploads/.cache/`. If a run fails or is stopped, upload the same PDF
+Resume: every finished page is saved under `data/uploads/.cache/`. If a run fails or is stopped, upload the same PDF
 again and finished pages are restored instead of re-billed. The cache is deleted when the bill completes.
 
-Uploaded bills are stored in `app/uploads/` as `<id>.json` (the extracted data) and `<id>.pdf` (the original file, kept so
+Uploaded bills are stored in `data/uploads/` as `<id>.json` (the extracted data) and `<id>.pdf` (the original file, kept so
 you can compare side by side). Deleting a bill removes both.
 
 ### Confidence scores and editing
@@ -100,7 +123,7 @@ you can compare side by side). Deleting a bill removes both.
   **Review next** jumps to the next one, and the left menu shows how many each section has.
 - **Edit any field:** click the pencil on a row, or click a table cell, then Enter to save or Esc to cancel.
   Edited fields show `edited` in blue and count as verified. **Revert to extracted value** is in the editor.
-  - Uploaded bills: edits are saved on the server (`app/uploads/<id>.json`) together with the original value.
+  - Uploaded bills: edits are saved on the server (`data/uploads/<id>.json`) together with the original value.
   - Sample bills: edits are kept in this browser only (localStorage).
 - The PDF report uses the edited values. Bills uploaded before this feature have no scores; upload them again to get them.
 
@@ -116,7 +139,7 @@ On a bill's detail page, **Show source PDF** (left menu) opens the original PDF 
 - Pages are rendered by the server (PyMuPDF), so no browser PDF plugin is needed. Page sizes are sent first so the
   layout does not jump while images load.
 - Bills uploaded before PDFs were kept show "Source PDF was not kept" - upload them again.
-- The two sample bills use `app/samples/D1.pdf` and `D2.pdf` (git-ignored; copy the sample PDFs there to enable it).
+- The two sample bills use `data/samples/D1.pdf` and `D2.pdf` (git-ignored; copy the sample PDFs there to enable it).
 
 ### Cost in the browser console
 
@@ -125,7 +148,7 @@ and a summary table when the run finishes. The terminal running `server.py` show
 
 ### Models
 
-Defaults are set in `app/extract_service.py` and can be overridden with environment variables:
+Defaults are set in `src/boe/extraction/extract_service.py` and can be overridden with environment variables:
 
 | Variable | Default | Role |
 |---|---|---|
@@ -137,7 +160,7 @@ Defaults are set in `app/extract_service.py` and can be overridden with environm
 | `RENDER_DPI` | `150` | page image resolution; `110` is faster with slightly lower accuracy |
 | `EXTRACT_ATTEMPTS` | `4` | tries per page on temporary errors (rate limit, 5xx, timeout), with waiting between tries |
 
-Prices used for the cost lines are in `app/cost.py`; update them if Google changes pricing.
+Prices used for the cost lines are in `src/boe/extraction/cost.py`; update them if Google changes pricing.
 
 ## Documentation
 
@@ -160,14 +183,14 @@ from each PDF because they differ between form versions):
 
 Bills extracted before this schema (no `schema: 2` in their JSON) show a "partial" / "not extracted" tag on the
 sections that were not read; upload them again to get every field. The full list of fields per section is in
-`files1/boe_schema.sql` (database) and `files2/schemas.py` (extraction).
+`database/schema.sql` (database) and `src/boe/extraction/schemas.py` (extraction).
 
 ## How the data is rechecked
 
 1. **Strict prompts** - copy values exactly as printed; never compute, round or convert. Temperature 0.
 2. **Evidence gate** (Parts I–III) - each value must appear in the page's text layer, otherwise the model must re-read
    (up to 2 retries).
-3. **Code cross-checks** (`files2/checks.py`) - item arithmetic, invoice totals, counts, valuation, duty totals,
+3. **Code cross-checks** (`src/boe/extraction/checks.py`) - item arithmetic, invoice totals, counts, valuation, duty totals,
    proportional assessable value.
 4. **Optional evaluator** - a different, stronger model checks each field against the page image.
 5. **Per-field score** - fields below 0.8 are marked *needs review*; the banner on an uploaded bill lists them.
@@ -178,7 +201,7 @@ data is consistent, not guaranteed correct.
 ## Tests
 
 ```powershell
-cd boe\files2
+cd boe
 .\.venv\Scripts\python -m pytest -q
 ```
 
@@ -187,9 +210,10 @@ cd boe\files2
 ### Command-line extraction (no web page)
 
 ```powershell
-cd boe\files2
+cd boe
 $env:GEMINI_API_KEY = "your-key"
-.\.venv\Scripts\python pipeline.py path\to\BE.pdf --out result.json
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python -m boe.extraction.pipeline path\to\BE.pdf --out data\result.json
 ```
 
 Add `--no-eval` to skip the evaluator. It uses the same model defaults and environment variables as the app.
@@ -221,6 +245,6 @@ Add `--no-eval` to skip the evaluator. It uses the same model defaults and envir
 - The server listens on `127.0.0.1` only and rejects cross-origin requests.
 - Uploaded PDFs are sent to Google's Gemini API for processing. Do not upload documents you are not allowed to share
   with that service.
-- Uploaded PDFs are also kept on disk in `app/uploads/` (git-ignored) until you delete the bill.
+- Uploaded PDFs are also kept on disk in `data/uploads/` (git-ignored) until you delete the bill.
 - The viewer ships with two sample bills built in; remove or replace them before sharing the project outside your
   organisation.

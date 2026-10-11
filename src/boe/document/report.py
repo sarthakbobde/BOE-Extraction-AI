@@ -288,7 +288,7 @@ def build_report(doc: dict) -> bytes:
 
     # ---------------- Part IV (same order as the PDF: the A-L sections, then supporting docs, containers, invoices)
     S.append(p("Part IV — Additional details", "h1"))
-    from viewer_schemas import PART4_SECTIONS
+    from boe.extraction.viewer_schemas import PART4_SECTIONS
     order = list(PART4_SECTIONS)
     for sec in sorted(doc.get("additional") or [], key=lambda x: order.index(x["code"]) if x.get("code") in order else 99):
         cols = sec.get("columns") or []

@@ -152,7 +152,7 @@ image shows **exactly that value in the correct row and column**, and returns `s
 
 ## 7. Step 6 — The score for Parts I–III (the pipeline score)
 
-Computed in `files2/pipeline.py → score_fields`. Every field starts at **1.0** (100 %), then:
+Computed in `src/boe/extraction/pipeline.py → score_fields`. Every field starts at **1.0** (100 %), then:
 
 | Signal | Penalty | Applied |
 |---|---|---|
@@ -300,16 +300,16 @@ on the amber/red fields.
 
 | What | Where |
 |---|---|
-| Model names / retries / temperature | `EXECUTOR_MODEL`, `EVALUATOR_MODEL`; `retries=2`, `ModelSettings(temperature=0)` in `files2/pipeline.py` |
-| Prompts | `files2/pipeline.py → PROMPTS`, `app/extract_service.py → EXTRA_PROMPTS` |
-| Schemas (what is asked) | `files2/schemas.py`, `app/viewer_schemas.py` |
-| Check rules and tolerances | `files2/checks.py` |
-| Penalties and the 0.8 review threshold | `files2/pipeline.py → score_fields`, `REVIEW_THRESHOLD` |
-| Text-match scores, the model rating (`MODEL_HIGH`, `MODEL_CAP`) and skip rules | `app/confidence.py`, `files2/pipeline.py → MODEL_CAP` |
-| Doubt-to-viewer-path mapping | `app/to_viewer.py → part1_doubt_path`, `INV_DOUBT`, `build_doc` |
-| Medium / Low thresholds in the UI | `LOW_BELOW`, `VLOW_BELOW`, `confLevel()` in `app/boe_viewer.html` |
-| Pipeline-path → viewer-path mapping | `app/to_viewer.py → map_pipeline_rows` (+ the `*_MAP` tables) |
-| Page classification | `app/extract_service.py → classify_all` |
+| Model names / retries / temperature | `EXECUTOR_MODEL`, `EVALUATOR_MODEL`; `retries=2`, `ModelSettings(temperature=0)` in `src/boe/extraction/pipeline.py` |
+| Prompts | `src/boe/extraction/pipeline.py → PROMPTS`, `src/boe/extraction/extract_service.py → EXTRA_PROMPTS` |
+| Schemas (what is asked) | `src/boe/extraction/schemas.py`, `src/boe/extraction/viewer_schemas.py` |
+| Check rules and tolerances | `src/boe/extraction/checks.py` |
+| Penalties and the 0.8 review threshold | `src/boe/extraction/pipeline.py → score_fields`, `REVIEW_THRESHOLD` |
+| Text-match scores, the model rating (`MODEL_HIGH`, `MODEL_CAP`) and skip rules | `src/boe/document/confidence.py`, `src/boe/extraction/pipeline.py → MODEL_CAP` |
+| Doubt-to-viewer-path mapping | `src/boe/document/to_viewer.py → part1_doubt_path`, `INV_DOUBT`, `build_doc` |
+| Medium / Low thresholds in the UI | `LOW_BELOW`, `VLOW_BELOW`, `confLevel()` in `src/boe/web/static/boe_viewer.html` |
+| Pipeline-path → viewer-path mapping | `src/boe/document/to_viewer.py → map_pipeline_rows` (+ the `*_MAP` tables) |
+| Page classification | `src/boe/extraction/extract_service.py → classify_all` |
 
 ---
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from confidence import apply_doubts, resolves, score_doc
+from boe.document.confidence import apply_doubts, resolves, score_doc
 
 DATE_FORMATS = ("%d/%m/%Y", "%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y", "%d/%m/%y")
 
@@ -287,7 +287,7 @@ def build_doc(ex, extras: dict, quality: dict, filename: str, field_rows=None, f
                                "docType": v(d.doc_type), "icegate": v(d.icegate_id), "irn": v(d.irn),
                                "place": v(d.issue_place), "date": date(d.issue_date), "expiry": date(d.expiry_date)})
 
-    from viewer_schemas import PART4_SECTIONS  # sections A-L, merged across pages, only those with data
+    from boe.extraction.viewer_schemas import PART4_SECTIONS  # sections A-L, merged across pages, only those with data
     merged: dict[str, list] = {}
     row_at: dict[tuple, int] = {}                   # (page output, section, row on that page) -> row in the merged table
     for _, p4 in extras.get("part4", []):

@@ -22,7 +22,7 @@ Everything runs locally: a small Python server plus one HTML page. The only outs
 ## 2. Architecture
 
 ```
- Browser  (app/boe_viewer.html — plain HTML/CSS/JS, no framework)
+ Browser  (src/boe/web/static/boe_viewer.html — plain HTML/CSS/JS, no framework)
    │   fetch /api/...                                  localStorage: AI key, sample-bill edits, UI choices
    ▼
  server.py  (Python standard-library ThreadingHTTPServer, 127.0.0.1 only)
@@ -31,8 +31,8 @@ Everything runs locally: a small Python server plus one HTML page. The only outs
    │                                                   │
    │                                                   ├── PyMuPDF   : pages → text layer + 150-dpi PNG
    │                                                   ├── pydantic-ai agents ──► Gemini (executor model)
-   │                                                   ├── files2/checks.py     : cross-checks (pure Python)
-   │                                                   ├── files2/pipeline.py   : scoring, optional evaluator model
+   │                                                   ├── src/boe/extraction/checks.py     : cross-checks (pure Python)
+   │                                                   ├── src/boe/extraction/pipeline.py   : scoring, optional evaluator model
    │                                                   ├── to_viewer.py         : extraction → viewer document
    │                                                   ├── confidence.py        : per-field scores
    │                                                   └── cost.py              : token & dollar tracking
@@ -42,30 +42,31 @@ Everything runs locally: a small Python server plus one HTML page. The only outs
    └── uploads/<id>.json + <id>.pdf   (the only storage)
 ```
 
-There is **no database in the running app**. Bills are JSON files. `files1/boe_schema.sql` is the designed PostgreSQL
+There is **no database in the running app**. Bills are JSON files. `database/schema.sql` is the designed PostgreSQL
 model for loading the data later; nothing writes to it yet.
 
 ### Folder map
 
 | Path | Purpose |
 |---|---|
-| `app/server.py` | HTTP server, all API routes, job runner, edit endpoint, file storage |
-| `app/extract_service.py` | The extraction orchestrator: classify pages → call agents → checks → score → build document |
-| `app/to_viewer.py` | Converts the extraction objects into the viewer's JSON document; maps pipeline scores to viewer paths |
-| `app/viewer_schemas.py` | Pydantic schemas for sections the pipeline doesn't evidence-gate (status, parties, Part IV/V/VI …) |
-| `app/confidence.py` | Text-match scoring for those sections |
-| `app/sections.py` | Reads the *printed* Part IV section letters from a PDF (they differ by form version) |
-| `app/pdfview.py` | Page rendering, page sizes, text search (for the PDF pane + highlights) |
-| `app/report.py` | The extracted-data PDF report (ReportLab) |
-| `app/cost.py` | Live Gemini cost meter |
-| `app/boe_viewer.html` | The whole front end (~2,000 lines) |
-| `app/uploads/` | Stored bills: `<id>.json` (data) + `<id>.pdf` (original). Git-ignored |
-| `app/samples/` | `D1.pdf`, `D2.pdf` for the two built-in sample bills. Git-ignored |
-| `files2/schemas.py` | Extraction schemas for Parts I–III (the evidence-checked core) |
-| `files2/pipeline.py` | Prompts, agents, evidence gate, optional evaluator, field scoring (also a CLI) |
-| `files2/checks.py` | Deterministic cross-checks |
-| `files2/test_checks.py` | 20 tests for schemas, checks and score caps (+ `app/test_ratings.py`, 4 tests of the High/Medium/Low logic) |
-| `files1/boe_schema.sql` | PostgreSQL schema (36 tables) + `migration_001/002` |
+| `src/boe/web/server.py` | HTTP server, all API routes, job runner, edit endpoint, file storage |
+| `src/boe/extraction/extract_service.py` | The extraction orchestrator: classify pages → call agents → checks → score → build document |
+| `src/boe/document/to_viewer.py` | Converts the extraction objects into the viewer's JSON document; maps pipeline scores to viewer paths |
+| `src/boe/extraction/viewer_schemas.py` | Pydantic schemas for sections the pipeline doesn't evidence-gate (status, parties, Part IV/V/VI …) |
+| `src/boe/document/confidence.py` | Text-match scoring for those sections |
+| `src/boe/extraction/sections.py` | Reads the *printed* Part IV section letters from a PDF (they differ by form version) |
+| `src/boe/web/pdfview.py` | Page rendering, page sizes, text search (for the PDF pane + highlights) |
+| `src/boe/document/report.py` | The extracted-data PDF report (ReportLab) |
+| `src/boe/extraction/cost.py` | Live Gemini cost meter |
+| `src/boe/web/static/boe_viewer.html` | The whole front end (~2,000 lines) |
+| `data/uploads/` | Stored bills: `<id>.json` (data) + `<id>.pdf` (original). Git-ignored |
+| `data/samples/` | `D1.pdf`, `D2.pdf` for the two built-in sample bills. Git-ignored |
+| `src/boe/extraction/schemas.py` | Extraction schemas for Parts I–III (the evidence-checked core) |
+| `src/boe/extraction/pipeline.py` | Prompts, agents, evidence gate, optional evaluator, field scoring (also a CLI) |
+| `src/boe/extraction/checks.py` | Deterministic cross-checks |
+| `tests/test_checks.py` | 20 tests for schemas, checks and score caps (+ `tests/test_ratings.py`, 4 tests of the High/Medium/Low logic) |
+| `legacy/boe_viewer_prototype.html` | The original static viewer (superseded by `web/static/boe_viewer.html`) |
+| `database/schema.sql` | PostgreSQL schema (36 tables) + `database/migrations/` (001, 002) |
 
 ---
 
@@ -80,7 +81,7 @@ model for loading the data later; nothing writes to it yet.
 5. **`extract()`** (`extract_service.py`):
    1. open the PDF (≤ 600 pages, `MAX_PAGES`), read every page's text, render a PNG only for pages sent to the model;
    2. classify each page into *kinds* (see §5);
-   3. run one agent call per (page, kind), 12 at a time (`EXTRACT_CONCURRENCY`), retrying temporary errors (429/5xx/timeouts) up to 4 times, saving each finished page to `app/uploads/.cache/` so a failed run resumes, as `asyncio` tasks;
+   3. run one agent call per (page, kind), 12 at a time (`EXTRACT_CONCURRENCY`), retrying temporary errors (429/5xx/timeouts) up to 4 times, saving each finished page to `data/uploads/.cache/` so a failed run resumes, as `asyncio` tasks;
    4. `assemble()` core results into a `BoeExtraction`; `run_all_checks()`;
    5. optional evaluator (second model) on Part I–III pages;
    6. `score_fields()` → per-field scores;
@@ -182,7 +183,7 @@ attaches confidence (see the AI document).
 | `GET /api/pdf/<id>/file` | The original PDF (inline) |
 | `POST /api/report` | Body = bill JSON → extracted-data PDF (ReportLab) |
 
-`<id>` is a 12-hex bill id, or `D1` / `D2` for the sample bills (served from `app/samples/`).
+`<id>` is a 12-hex bill id, or `D1` / `D2` for the sample bills (served from `data/samples/`).
 
 Limits: PDF ≤ 300 MB and ≤ 600 pages (both configurable); report body ≤ 8 MB; edit body ≤ 200 KB.
 
@@ -215,7 +216,7 @@ Browser storage keys: `boe_gemini_key` (AI key), `boe_sample_edits` (edits to th
   logs it (error messages have it masked).
 - Uploaded text is HTML-escaped before it reaches `innerHTML` (`deepEscape`); the report builder escapes markup.
 - IDs are validated by regex; edit paths are validated and deny-listed; sizes are capped.
-- Uploaded PDFs are sent to Google's Gemini API, and kept in `app/uploads/` (git-ignored) until the bill is deleted.
+- Uploaded PDFs are sent to Google's Gemini API, and kept in `data/uploads/` (git-ignored) until the bill is deleted.
 
 ---
 
@@ -230,7 +231,7 @@ browser as an event. Real numbers so far: roughly **$0.016–0.02 per call**; a 
 
 ## 10. Database design (not wired in yet)
 
-`files1/boe_schema.sql` — PostgreSQL, 36 tables: `boe` → `boe_invoice` → `boe_invoice_item` → `boe_item_duty`
+`database/schema.sql` — PostgreSQL, 36 tables: `boe` → `boe_invoice` → `boe_invoice_item` → `boe_item_duty`
 (one row per item per duty type, with `ref_duty_type`), plus one table per Part I/IV/V/VI section and a
 `boe_field_catalog`. Every field the extractor reads has a column. `migration_001` added the late-found fields;
 `migration_002` turns "Duty Fg" into an amount column. Loading extracted JSON into these tables is future work.
@@ -239,7 +240,7 @@ browser as an event. Real numbers so far: roughly **$0.016–0.02 per call**; a 
 
 ## 11. Testing
 
-- `cd files2 && python -m pytest -q` → **20 tests** on the schemas and cross-checks (golden data from a real bill,
+- `python -m pytest -q` (from the repository root) → **20 tests** on the schemas and cross-checks (golden data from a real bill,
   injected mistakes such as a digit swap, wrong column, dropped item; legacy-format loading; new duty rules).
 - UI and mapping were verified with offline scripts (synthetic full-schema bill, sweeps over every section page) and
   with three real extractions compared with the PDF page images.
@@ -250,8 +251,8 @@ browser as an event. Real numbers so far: roughly **$0.016–0.02 per call**; a 
 ## 12. Running & configuring
 
 ```powershell
-cd boe\files2 ; python -m venv .venv ; .\.venv\Scripts\pip install -r requirements.txt
-cd ..\app     ; ..\files2\.venv\Scripts\python server.py          # http://127.0.0.1:8765
+cd boe ; python -m venv .venv ; .\.venv\Scripts\pip install -r requirements.txt
+.\.venv\Scripts\python run.py          # http://127.0.0.1:8765
 ```
 Env vars: `GEMINI_API_KEY` (server-side key, so no key prompt), `EXECUTOR_MODEL`, `EVALUATOR_MODEL`,
 `PYDANTIC_AI_NO_BANNER=1`. Tip: run the server in a visible terminal to see the cost lines.
@@ -261,12 +262,12 @@ Env vars: `GEMINI_API_KEY` (server-side key, so no key prompt), `EXECUTOR_MODEL`
 ## 13. How to extend
 
 **Add a field** (e.g. a new box on the form)
-1. Add it to the extraction schema (`files2/schemas.py` if it should be evidence-checked and scored, otherwise
-   `app/viewer_schemas.py`), with the printed field number in its description.
-2. Map it in `app/to_viewer.py` (document key) — and in `SUMMARY_MAP` / `HEADER_MAP` / `DUTY_MAP` so its pipeline score
+1. Add it to the extraction schema (`src/boe/extraction/schemas.py` if it should be evidence-checked and scored, otherwise
+   `src/boe/extraction/viewer_schemas.py`), with the printed field number in its description.
+2. Map it in `src/boe/document/to_viewer.py` (document key) — and in `SUMMARY_MAP` / `HEADER_MAP` / `DUTY_MAP` so its pipeline score
    lands on the right path.
 3. Show it in `renderMain` with `Fld(no, label, path)` (or an `ecell` column).
-4. Add the column to `files1/boe_schema.sql` (+ a migration), and to `report.py` if it should print.
+4. Add the column to `database/schema.sql` (+ a migration), and to `report.py` if it should print.
 
 **Add a Part IV section:** add it to `PART4_SECTIONS` (columns, in printed order) and `PART4_TITLES`; the prompt, mapper
 and viewer pick it up.
@@ -288,5 +289,5 @@ extract/progress/PDF pages/report → an Azure service running this same Python.
   `run_all_checks`.
 - Sections outside Parts I–III are read by the model but cross-checked only by the text match.
 - Only two form versions have been seen (2025 and 2026). A future version with renamed or new Part IV sections may need
-  `PART4_TITLES` (in `app/sections.py`) and `PART4_SECTIONS` extended.
+  `PART4_TITLES` (in `src/boe/extraction/sections.py`) and `PART4_SECTIONS` extended.
 - The PDF highlight searches the page text, so scanned (image-only) PDFs would not highlight or text-match.
