@@ -1,0 +1,261 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "BOE Extractor",
+    "description": "Reads Indian Customs Bill of Entry PDFs with the local BOE Extractor app (Gemini extraction, cross-checks and High/Medium/Low ratings). Calls the app through an on-premises data gateway.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8770",
+  "basePath": "/",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {},
+  "security": [],
+  "paths": {
+    "/api/config": {
+      "get": {
+        "operationId": "GetConfig",
+        "summary": "Check the app is reachable",
+        "description": "Returns the app's settings. Use it to test the connection and to see whether the server holds a Gemini key (serverKey).",
+        "responses": {
+          "200": { "description": "Settings", "schema": { "$ref": "#/definitions/Config" } }
+        }
+      }
+    },
+    "/api/extract": {
+      "post": {
+        "operationId": "StartExtraction",
+        "summary": "Start extracting a Bill of Entry PDF",
+        "description": "Uploads a PDF and starts extraction in the background. Returns a job id straight away; poll 'Get extraction status' until status is done or error. The server must be started with the GEMINI_API_KEY environment variable.",
+        "consumes": ["application/pdf"],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "body",
+            "required": true,
+            "description": "The PDF file content",
+            "x-ms-summary": "PDF file content",
+            "schema": { "type": "string", "format": "binary" }
+          },
+          {
+            "name": "X-Filename",
+            "in": "header",
+            "required": false,
+            "type": "string",
+            "description": "File name shown in the app, e.g. BE-3604502.pdf",
+            "x-ms-summary": "File name"
+          },
+          {
+            "name": "X-Eval",
+            "in": "header",
+            "required": false,
+            "type": "string",
+            "enum": ["0", "1"],
+            "default": "0",
+            "description": "1 = also audit every field with a second model (about double the cost and time)",
+            "x-ms-summary": "Double-check with a second model",
+            "x-ms-visibility": "advanced"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Job started", "schema": { "$ref": "#/definitions/JobStarted" } },
+          "400": { "description": "No Gemini key on the server, not a PDF, or upload interrupted", "schema": { "$ref": "#/definitions/Error" } },
+          "413": { "description": "PDF too large", "schema": { "$ref": "#/definitions/Error" } }
+        }
+      }
+    },
+    "/api/jobs/{jobId}": {
+      "get": {
+        "operationId": "GetJob",
+        "summary": "Get extraction status",
+        "description": "Progress of an extraction. When status is done, 'doc' (Bill) holds the extracted data and 'docId' (Bill id) its id. Jobs are kept for one hour and are lost if the app restarts.",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "The job id returned by 'Start extraction'",
+            "x-ms-summary": "Job id"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Job status", "schema": { "$ref": "#/definitions/Job" } },
+          "404": { "description": "Unknown job (expired or the app restarted)", "schema": { "$ref": "#/definitions/Error" } }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "operationId": "ListBills",
+        "summary": "List stored bills",
+        "description": "Every bill stored by the app, newest first, with the full extracted data.",
+        "responses": {
+          "200": { "description": "Bills", "schema": { "type": "array", "items": { "$ref": "#/definitions/Bill" } } }
+        }
+      }
+    },
+    "/api/docs/{billId}": {
+      "delete": {
+        "operationId": "DeleteBill",
+        "summary": "Delete a stored bill",
+        "description": "Removes the bill's extracted data and its PDF from the app. Cannot be undone.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "12-character bill id",
+            "x-ms-summary": "Bill id"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Deleted", "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } }
+        }
+      }
+    },
+    "/api/pdf/{billId}/file": {
+      "get": {
+        "operationId": "GetSourcePdf",
+        "summary": "Download the original PDF",
+        "description": "The PDF that was uploaded for this bill.",
+        "produces": ["application/pdf"],
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "12-character bill id",
+            "x-ms-summary": "Bill id"
+          }
+        ],
+        "responses": {
+          "200": { "description": "PDF file", "schema": { "type": "string", "format": "binary" } },
+          "404": { "description": "Unknown bill" }
+        }
+      }
+    },
+    "/api/report": {
+      "post": {
+        "operationId": "GetReport",
+        "summary": "Create the extracted-data PDF report",
+        "description": "Builds the PDF report for a bill. Pass the bill object returned by 'Get extraction status' (doc) or one item of 'List stored bills'.",
+        "produces": ["application/pdf"],
+        "parameters": [
+          {
+            "name": "bill",
+            "in": "body",
+            "required": true,
+            "description": "The extracted bill",
+            "x-ms-summary": "Bill",
+            "schema": { "type": "object" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Report PDF", "schema": { "type": "string", "format": "binary" } },
+          "400": { "description": "Not a bill object", "schema": { "$ref": "#/definitions/Error" } }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Config": {
+      "type": "object",
+      "properties": {
+        "serverKey": { "type": "boolean", "x-ms-summary": "Server has a Gemini key" },
+        "executorModel": { "type": "string", "x-ms-summary": "Extraction model" },
+        "evaluatorModel": { "type": "string", "x-ms-summary": "Second-model check" },
+        "maxUploadMb": { "type": "integer", "x-ms-summary": "Largest PDF (MB)" },
+        "maxPages": { "type": "integer", "x-ms-summary": "Most pages" }
+      }
+    },
+    "JobStarted": {
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string", "x-ms-summary": "Job id" }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "x-ms-summary": "Error code" },
+        "error": { "type": "string", "x-ms-summary": "Error message" }
+      }
+    },
+    "Job": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["running", "done", "error"], "x-ms-summary": "Status" },
+        "done": { "type": "integer", "x-ms-summary": "Steps done" },
+        "total": { "type": "integer", "x-ms-summary": "Steps in total" },
+        "message": { "type": "string", "x-ms-summary": "Progress message" },
+        "code": { "type": "string", "x-ms-summary": "Error code", "description": "On error: bad_key, no_key, bad_pdf, not_boe, too_big, bad_model, rate_limit or failed" },
+        "error": { "type": "string", "x-ms-summary": "Error message" },
+        "docId": { "type": "string", "x-ms-summary": "Bill id" },
+        "doc": { "$ref": "#/definitions/Bill" },
+        "cost": {
+          "type": "object",
+          "x-ms-summary": "Cost",
+          "properties": {
+            "calls": { "type": "integer", "x-ms-summary": "AI calls" },
+            "usd": { "type": "number", "x-ms-summary": "Cost (USD)" }
+          }
+        }
+      }
+    },
+    "Bill": {
+      "type": "object",
+      "x-ms-summary": "Bill",
+      "properties": {
+        "id": { "type": "string", "x-ms-summary": "Bill id" },
+        "sourceFile": { "type": "string", "x-ms-summary": "Source file name" },
+        "uploadedAt": { "type": "string", "x-ms-summary": "Extracted at" },
+        "pageCount": { "type": "integer", "x-ms-summary": "Pages" },
+        "boe": {
+          "type": "object",
+          "properties": {
+            "beNo": { "type": "string", "x-ms-summary": "BE number" },
+            "beDate": { "type": "string", "x-ms-summary": "BE date" },
+            "portCode": { "type": "string", "x-ms-summary": "Port code" },
+            "beType": { "type": "string", "x-ms-summary": "BE type" },
+            "iecBr": { "type": "string", "x-ms-summary": "IEC / Br" },
+            "gstin": { "type": "string", "x-ms-summary": "GSTIN / type" },
+            "totalInvoices": { "type": "integer", "x-ms-summary": "Total invoices" },
+            "totalItems": { "type": "integer", "x-ms-summary": "Total items" },
+            "totalPackages": { "type": "integer", "x-ms-summary": "Total packages" },
+            "grossWeightKg": { "type": "string", "x-ms-summary": "Gross weight (kg)" }
+          }
+        },
+        "declarant": {
+          "type": "object",
+          "properties": {
+            "importerName": { "type": "string", "x-ms-summary": "Importer name" },
+            "cbName": { "type": "string", "x-ms-summary": "Customs broker" }
+          }
+        },
+        "dutySummary": {
+          "type": "object",
+          "properties": {
+            "bcd": { "type": "number", "x-ms-summary": "BCD" },
+            "sws": { "type": "number", "x-ms-summary": "SWS" },
+            "igst": { "type": "number", "x-ms-summary": "IGST" },
+            "totalAssessableValue": { "type": "number", "x-ms-summary": "Total assessable value" },
+            "totalDuty": { "type": "number", "x-ms-summary": "Total duty" },
+            "totalAmount": { "type": "number", "x-ms-summary": "Total amount" }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "properties": {
+            "fields": { "type": "integer", "x-ms-summary": "Fields checked (Parts I-III)" },
+            "needsReview": { "type": "integer", "x-ms-summary": "Fields needing review" },
+            "failedChecks": { "type": "integer", "x-ms-summary": "Failed cross-checks" }
+          }
+        }
+      }
+    }
+  }
+}
